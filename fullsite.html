@@ -201,6 +201,90 @@ hr.div{border:none;border-top:1px solid var(--border);margin:16px 0;}
 ::-webkit-scrollbar{width:4px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+/* Mission Panel */
+.mission-panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:22px;}
+.mission-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.mission-title{font-size:12px;font-weight:700;color:var(--text);}
+.mission-badge{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--green);background:var(--green-bg);padding:2px 8px;border-radius:4px;}
+.mission-input-row{display:flex;gap:8px;margin-bottom:12px;}
+.mission-ta{flex:1;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:12px;font-family:'Syne',sans-serif;resize:none;height:42px;line-height:1.4;transition:border-color .15s;}
+.mission-ta:focus{border-color:var(--border2);outline:none;}
+.mission-ta::placeholder{color:var(--dim);}
+.mission-btn{background:var(--green);border:none;border-radius:8px;padding:0 18px;color:var(--green-bg);font-size:12px;font-weight:700;font-family:'Syne',sans-serif;white-space:nowrap;transition:background .15s;cursor:pointer;}
+.mission-btn:hover{background:#86efac;}
+.mission-btn:disabled{background:var(--card);color:var(--dim);cursor:not-allowed;}
+.mission-thread{display:flex;flex-direction:column;gap:8px;max-height:340px;overflow-y:auto;}
+.mission-msg{display:flex;flex-direction:column;gap:3px;}
+.mission-sender{font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:.08em;text-transform:uppercase;display:flex;align-items:center;gap:5px;}
+.mission-sender .dot{width:5px;height:5px;}
+.mission-body{font-size:11px;line-height:1.6;padding:10px 13px;border-radius:8px;white-space:pre-wrap;word-break:break-word;}
+.mission-msg.user .mission-body{background:#0f1a12;border:1px solid #1a2e1e;color:#a8d4b0;}
+.mission-msg.user .mission-sender{justify-content:flex-end;color:var(--green);}
+.mission-msg.orchestrator .mission-body{background:#0e0e20;border:1px solid #1e1e3a;color:#a0a8e0;}
+.mission-msg.orchestrator .mission-sender{color:#818cf8;}
+.mission-msg.contenido .mission-body{background:#1a100a;border:1px solid #2e1e0a;color:#d4c0a0;}
+.mission-msg.contenido .mission-sender{color:var(--amber);}
+.mission-msg.reportes .mission-body{background:#0a101a;border:1px solid #0a1e2e;color:#a0c0d4;}
+.mission-msg.reportes .mission-sender{color:var(--blue);}
+.mission-msg.ops .mission-body{background:#0a1a10;border:1px solid #0a2e1a;color:#a0d4b8;}
+.mission-msg.ops .mission-sender{color:var(--green);}
+.mission-msg.kb .mission-body{background:#140a1a;border:1px solid #200a2e;color:#c0a0d4;}
+.mission-msg.kb .mission-sender{color:#c084fc;}
+.mission-msg.system .mission-body{background:var(--card);border:1px solid var(--border);color:var(--dim);font-family:'JetBrains Mono',monospace;font-size:9px;}
+.mission-msg.system .mission-sender{color:var(--dim);}
+.mission-typing{display:flex;align-items:center;gap:4px;padding:8px 13px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim);}
+.mission-typing span{animation:blink 1.2s ease-in-out infinite;}
+.mission-typing span:nth-child(2){animation-delay:.2s;}
+.mission-typing span:nth-child(3){animation-delay:.4s;}
+.mission-empty{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim);text-align:center;padding:16px;line-height:1.8;}
+.mission-quick{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;}
+.mission-quick-btn{background:var(--card);border:1px solid var(--border);border-radius:5px;padding:4px 10px;font-size:10px;color:var(--dim);font-family:'JetBrains Mono',monospace;cursor:pointer;transition:all .15s;}
+.mission-quick-btn:hover{border-color:var(--border2);color:var(--muted);}
+/* ---- PIXEL OFFICE ---- */
+.pixel-office-wrap{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:22px;overflow:hidden;}
+.pixel-office-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.pixel-office-title{font-size:12px;font-weight:700;color:var(--text);}
+.pixel-office-sub{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim);}
+.pixel-office{position:relative;width:100%;height:180px;background:#1a120a;border-radius:8px;overflow:hidden;image-rendering:pixelated;}
+.px-floor{position:absolute;inset:0;background:repeating-linear-gradient(90deg,#1e1408 0px,#1e1408 16px,#221608 16px,#221608 32px),repeating-linear-gradient(180deg,#1e1408 0px,#1e1408 16px,#221608 16px,#221608 32px);background-blend-mode:multiply;}
+.px-wall{position:absolute;top:0;left:0;right:0;height:40px;background:#0e0e1a;border-bottom:2px solid #1a1a2e;}
+.px-wall::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:#2a2a4a;}
+/* Desks */
+.px-desk{position:absolute;width:52px;height:32px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.px-desk-contenido{background:#2a1a08;border:1px solid #3a2a10;left:24px;top:48px;}
+.px-desk-reportes{background:#08101a;border:1px solid #102030;left:130px;top:48px;}
+.px-desk-ops{background:#081a10;border:1px solid #103020;left:236px;top:48px;}
+.px-desk-kb{background:#1a0818;border:1px solid #2a1028;left:342px;top:48px;}
+/* Monitor on desk */
+.px-monitor{position:absolute;width:18px;height:13px;background:#060610;border:1px solid #2a2a4a;border-radius:1px;top:-10px;left:17px;}
+.px-monitor::after{content:'';position:absolute;bottom:-4px;left:6px;width:6px;height:3px;background:#1a1a2a;}
+/* Characters */
+.px-char{position:absolute;width:36px;display:flex;flex-direction:column;align-items:center;transition:left .5s cubic-bezier(.4,0,.2,1),top .5s cubic-bezier(.4,0,.2,1);}
+@keyframes px-type{0%,100%{transform:translateY(0) rotate(0deg)}25%{transform:translateY(-1px) rotate(-1deg)}75%{transform:translateY(0px) rotate(1deg)}}
+@keyframes px-idle{0%,100%{transform:translateY(0)}50%{transform:translateY(-1px)}}
+@keyframes px-think{0%,100%{transform:rotate(0deg) translateY(0)}33%{transform:rotate(-3deg) translateY(-1px)}66%{transform:rotate(2deg) translateY(0)}}
+@keyframes px-walk{0%,100%{transform:translateX(0) rotate(0deg)}25%{transform:translateX(2px) rotate(2deg)}75%{transform:translateX(-2px) rotate(-2deg)}}
+@keyframes px-bounce{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-4px) scale(1.05)}}
+.px-char svg{display:block;}
+.px-char.typing svg{animation:px-type .25s infinite;}
+.px-char.idle svg{animation:px-idle 2.5s ease-in-out infinite;}
+.px-char.thinking svg{animation:px-think .9s ease-in-out infinite;}
+.px-char.walking svg{animation:px-walk .25s infinite;}
+.px-char.done svg{animation:px-bounce .4s ease-out 2;}
+/* Speech bubble */
+.px-bubble{position:absolute;background:#fafafa;border:1px solid #e0e0e0;border-radius:6px;padding:4px 7px;font-size:8px;font-family:'JetBrains Mono',monospace;color:#111;white-space:nowrap;max-width:100px;white-space:normal;line-height:1.3;pointer-events:none;z-index:10;top:-2px;left:18px;box-shadow:0 2px 8px rgba(0,0,0,.4);}
+.px-bubble::before{content:'';position:absolute;left:-5px;top:6px;width:0;height:0;border-top:4px solid transparent;border-bottom:4px solid transparent;border-right:5px solid #e0e0e0;}
+.px-bubble::after{content:'';position:absolute;left:-4px;top:7px;width:0;height:0;border-top:3px solid transparent;border-bottom:3px solid transparent;border-right:4px solid #fafafa;}
+/* Labels */
+.px-label{position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);font-family:'JetBrains Mono',monospace;font-size:7px;color:var(--dim);white-space:nowrap;}
+/* Plants and decorations */
+.px-plant{position:absolute;font-size:14px;line-height:1;}
+/* Status bar */
+.px-status{display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;}
+.px-agent-st{display:flex;align-items:center;gap:4px;font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--dim);}
+.px-agent-st .dot{width:5px;height:5px;}
+.px-agent-st.active{color:var(--green);}
+.px-agent-st.thinking{color:var(--amber);}
 </style>
 </head>
 <body>
@@ -524,6 +608,543 @@ function handleKey(e) {
 }
 
 // ============================================================
+// MULTI-AGENT MISSION SYSTEM
+// ============================================================
+let missionThread = [];
+
+const AGENT_COLORS = {
+  orchestrator: { label:'🧠 Orquestador', cls:'orchestrator' },
+  contenido:    { label:'✍️ Contenido',    cls:'contenido' },
+  reportes:     { label:'📊 Reportes',     cls:'reportes' },
+  ops:          { label:'⚙️ Ops',          cls:'ops' },
+  kb:           { label:'📚 AMALAY KB',    cls:'kb' },
+  system:       { label:'Sistema',         cls:'system' },
+  user:         { label:'Tú — Daniel',     cls:'user' }
+};
+
+function setMission(text) {
+  const ta = document.getElementById('mission-ta');
+  if(ta) { ta.value = text; ta.focus(); }
+}
+
+// ============================================================
+// PIXEL OFFICE — Canvas 2D Game Engine (Pixel Agents style)
+// ============================================================
+const PxGame = {
+  canvas: null, ctx: null, animId: null, frame: 0,
+  T: 32, COLS: 15, ROWS: 7,
+  sprites: {},
+  spritesLoaded: false,
+
+  // Map tiles: 0=wall, 1=shelf, 2=wood-floor, 3=carpet, 4=desk, 5=plant
+  MAP: [
+    [0,1,1,1,1,1,0,0,1,1,1,1,1,1,0],
+    [0,2,2,2,2,2,0,0,3,3,3,3,3,3,0],
+    [0,2,4,4,2,2,0,0,3,4,4,3,3,3,0],
+    [0,2,2,2,5,2,0,0,3,3,3,5,3,3,0],
+    [0,2,4,4,2,2,0,0,3,4,4,3,3,3,0],
+    [0,2,2,2,2,2,0,0,3,3,3,3,3,3,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  ],
+
+  // char index assigned to each agent
+  CHAR_IDX: { contenido:0, reportes:1, ops:2, kb:3, orchestrator:4 },
+  BASE_URL: 'https://raw.githubusercontent.com/pablodelucca/pixel-agents/main/webview-ui/public/assets/characters/',
+
+  agents: {
+    contenido:   {x:80, y:96,  tx:80,  ty:96,  state:'idle', bubble:'', hair:'#d97706', shirt:'#92400e', pants:'#451a03', deskTx:80,  deskTy:64},
+    reportes:    {x:80, y:160, tx:80,  ty:160, state:'idle', bubble:'', hair:'#2563eb', shirt:'#1e40af', pants:'#1e3a8a', deskTx:80,  deskTy:128},
+    ops:         {x:304,y:96,  tx:304, ty:96,  state:'idle', bubble:'', hair:'#16a34a', shirt:'#166534', pants:'#14532d', deskTx:304, deskTy:64},
+    kb:          {x:304,y:160, tx:304, ty:160, state:'idle', bubble:'', hair:'#7c3aed', shirt:'#6b21a8', pants:'#581c87', deskTx:304, deskTy:128},
+    orchestrator:{x:240,y:175, tx:240, ty:175, state:'idle', bubble:'', hair:'#818cf8', shirt:'#3730a3', pants:'#312e81', deskTx:240, deskTy:120, hidden:true},
+  },
+
+  loadSprites() {
+    const promises = [0,1,2,3,4,5].map(i => new Promise(resolve => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => { this.sprites[i] = img; resolve(); };
+      img.onerror = () => { this.sprites[i] = null; resolve(); }; // fallback to drawn
+      img.src = this.BASE_URL + 'char_' + i + '.png';
+    }));
+    return Promise.all(promises);
+  },
+
+  init() {
+    const el = document.getElementById('px-canvas');
+    if(!el) return;
+    if(this.animId) cancelAnimationFrame(this.animId);
+    this.canvas = el;
+    this.canvas.width  = this.COLS * this.T;
+    this.canvas.height = this.ROWS * this.T;
+    this.ctx = el.getContext('2d');
+    this.ctx.imageSmoothingEnabled = false;
+    // Load real sprites first, then start loop
+    this.loadSprites().then(() => {
+      this.spritesLoaded = true;
+      const loop = () => { this.frame++; this.update(); this.draw(); this.animId = requestAnimationFrame(loop); };
+      loop();
+    });
+  },
+
+  update() {
+    for(const ag of Object.values(this.agents)) {
+      const dx = ag.tx - ag.x, dy = ag.ty - ag.y;
+      const dist = Math.hypot(dx, dy);
+      if(dist > 1.5) { ag.x += dx/dist*1.8; ag.y += dy/dist*1.8; ag.moving=true; }
+      else { ag.x=ag.tx; ag.y=ag.ty; ag.moving=false; }
+    }
+  },
+
+  draw() {
+    const {ctx,T,COLS,ROWS,MAP} = this;
+    // Tilemap
+    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) this.drawTile(c*T,r*T,MAP[r][c]);
+    // Wall line at bottom of shelves
+    ctx.fillStyle='rgba(0,0,0,0.15)'; ctx.fillRect(0,T,COLS*T,2);
+    // Agents (sorted by y for depth)
+    const sorted = Object.entries(this.agents).filter(([,a])=>!a.hidden||(a.state!=='idle'||a.x!==240)).sort(([,a],[,b])=>a.y-b.y);
+    for(const [id,ag] of sorted) this.drawAgent(id,ag);
+  },
+
+  drawTile(x,y,type) {
+    const {ctx,T} = this;
+    if(type===0) { // WALL
+      // Dark wall
+      ctx.fillStyle='#1a1208'; ctx.fillRect(x,y,T,T);
+      ctx.fillStyle='#110d05'; ctx.fillRect(x,y+T-2,T,2);
+      // Baseboard
+      ctx.fillStyle='#2a1e0a'; ctx.fillRect(x,y+T-4,T,2);
+    } else if(type===1) { // SHELF
+      ctx.fillStyle='#1a1208'; ctx.fillRect(x,y,T,T);
+      // Shelf board wood
+      ctx.fillStyle='#3d2b0e'; ctx.fillRect(x+1,y+4,T-2,T-6);
+      ctx.fillStyle='#4a3515'; ctx.fillRect(x+1,y+4,T-2,3);
+      ctx.fillStyle='#2d1e08'; ctx.fillRect(x+1,y+T-4,T-2,2);
+      // Books
+      const cols=['#dc2626','#2563eb','#16a34a','#d97706','#7c3aed','#0891b2','#be185d','#0d9488'];
+      let bx=x+2; let bi=Math.floor(x/T+y);
+      while(bx<x+T-3) {
+        const bw=3+((bx*3+y*7)%3);
+        ctx.fillStyle=cols[(bi++)%cols.length];
+        ctx.fillRect(bx,y+6,bw,T-12);
+        // Book highlight
+        ctx.fillStyle='rgba(255,255,255,0.15)'; ctx.fillRect(bx,y+6,1,T-12);
+        // Book spine line
+        ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.fillRect(bx+bw,y+6,1,T-12);
+        bx+=bw+1;
+      }
+    } else if(type===2) { // WOOD FLOOR
+      ctx.fillStyle='#8B6340'; ctx.fillRect(x,y,T,T);
+      // Planks
+      ctx.fillStyle='#7A5530';
+      ctx.fillRect(x,y+10,T,1); ctx.fillRect(x,y+21,T,1);
+      const off=(Math.floor(x/T)%2)*16;
+      ctx.fillRect(x+off,y,1,10); ctx.fillRect(x+off,y+11,1,10); ctx.fillRect(x+off,y+22,1,T-22);
+      // Highlight
+      ctx.fillStyle='rgba(255,255,255,0.04)'; ctx.fillRect(x,y,T,1);
+      // Shadow between planks
+      ctx.fillStyle='rgba(0,0,0,0.08)'; ctx.fillRect(x,y+T-1,T,1);
+    } else if(type===3) { // CARPET
+      ctx.fillStyle='#2d1f4e'; ctx.fillRect(x,y,T,T);
+      ctx.fillStyle='#38266a'; ctx.fillRect(x+2,y+2,T-4,T-4);
+      // Carpet diamond pattern
+      ctx.fillStyle='#4a3580';
+      for(let i=0;i<3;i++) for(let j=0;j<3;j++) { ctx.fillRect(x+5+i*9,y+4+j*9,3,1); ctx.fillRect(x+6+i*9,y+3+j*9,1,3); }
+      ctx.fillStyle='rgba(255,255,255,0.03)'; ctx.fillRect(x,y,T,1);
+    } else if(type===4) { // DESK
+      // Floor under desk
+      const isWood=(x<this.COLS*this.T/2); 
+      ctx.fillStyle=isWood?'#8B6340':'#2d1f4e'; ctx.fillRect(x,y,T,T);
+      if(isWood){ctx.fillStyle='#7A5530';ctx.fillRect(x,y+10,T,1);ctx.fillRect(x,y+21,T,1);}
+      else{ctx.fillStyle='#38266a';ctx.fillRect(x+2,y+2,T-4,T-4);}
+      // Desk top
+      ctx.fillStyle='#7a5c38'; ctx.fillRect(x+1,y+2,T-2,6);
+      ctx.fillStyle='#6B4E2E'; ctx.fillRect(x+1,y+7,T-2,T-14);
+      ctx.fillStyle='#4a3520'; ctx.fillRect(x+1,y+T-7,T-2,5);
+      // Desk legs
+      ctx.fillStyle='#3a2810'; ctx.fillRect(x+2,y+T-5,4,4); ctx.fillRect(x+T-6,y+T-5,4,4);
+      // Monitor base & stand
+      ctx.fillStyle='#2d2d2d'; ctx.fillRect(x+12,y+13,6,4); ctx.fillRect(x+14,y+10,2,4);
+      // Monitor body
+      ctx.fillStyle='#1a1a2e'; ctx.fillRect(x+6,y+4,18,10);
+      ctx.fillStyle='#0a0a1a'; ctx.fillRect(x+7,y+5,16,8);
+      // Screen (glowing blue)
+      ctx.fillStyle='#0f3460'; ctx.fillRect(x+8,y+6,14,6);
+      ctx.fillStyle='#1a5276'; ctx.fillRect(x+9,y+7,10,3);
+      ctx.fillStyle='rgba(100,180,255,0.15)'; ctx.fillRect(x+8,y+6,14,1);
+      // Keyboard
+      ctx.fillStyle='#3d3d3d'; ctx.fillRect(x+7,y+14,12,3);
+      ctx.fillStyle='#4a4a4a'; ctx.fillRect(x+8,y+14,10,2);
+      // Mouse
+      ctx.fillStyle='#3d3d3d'; ctx.fillRect(x+21,y+14,4,3); ctx.fillRect(x+22,y+13,2,1);
+    } else if(type===5) { // PLANT
+      const isWood=(x<this.COLS*this.T/2);
+      ctx.fillStyle=isWood?'#8B6340':'#2d1f4e'; ctx.fillRect(x,y,T,T);
+      // Pot
+      ctx.fillStyle='#7c3520'; ctx.fillRect(x+10,y+18,10,9);
+      ctx.fillStyle='#6b2d1a'; ctx.fillRect(x+9,y+16,12,4);
+      ctx.fillStyle='#501f10'; ctx.fillRect(x+10,y+26,10,1);
+      // Soil
+      ctx.fillStyle='#2d1206'; ctx.fillRect(x+10,y+16,12,3);
+      // Stems
+      ctx.fillStyle='#15803d'; ctx.fillRect(x+14,y+6,3,14); ctx.fillRect(x+10,y+10,4,8); ctx.fillRect(x+18,y+11,4,7);
+      // Leaves
+      ctx.fillStyle='#166534'; ctx.fillRect(x+6,y+4,10,8); ctx.fillRect(x+16,y+6,8,7); ctx.fillRect(x+8,y+10,6,5);
+      ctx.fillStyle='#22c55e'; ctx.fillRect(x+8,y+5,6,4); ctx.fillRect(x+18,y+7,4,4); ctx.fillRect(x+7,y+11,4,3);
+      ctx.fillStyle='#4ade80'; ctx.fillRect(x+10,y+4,3,2); ctx.fillRect(x+19,y+6,2,2);
+    }
+  },
+
+  drawAgent(id, ag) {
+    const {ctx, frame:f} = this;
+    const px=Math.round(ag.x), py=Math.round(ag.y);
+    const {state,moving,hair,shirt,pants} = ag;
+    const typing = state==='typing';
+    const thinking = state==='thinking';
+    const bob = moving ? Math.sin(f*0.35)*2 : (typing ? Math.sin(f*0.5)*0.8 : Math.sin(f*0.04)*0.6);
+    const armSwing = typing ? Math.sin(f*0.5)*4 : (moving ? Math.sin(f*0.35)*3 : 0);
+    const legSwing = moving ? Math.sin(f*0.35)*3 : 0;
+    const blink = (f%140)<4;
+    const headTilt = thinking ? Math.sin(f*0.07)*3 : 0;
+
+    // Shadow
+    ctx.fillStyle='rgba(0,0,0,0.25)';
+    ctx.beginPath(); ctx.ellipse(px+8,py+22,7,2.5,0,0,Math.PI*2); ctx.fill();
+
+    const spriteIdx = this.CHAR_IDX[id] ?? 0;
+    const sprite = this.sprites[spriteIdx];
+
+    if(sprite && sprite.complete && sprite.naturalWidth > 0) {
+      // --- USE REAL PIXEL AGENTS SPRITE ---
+      const sw = sprite.naturalWidth, sh = sprite.naturalHeight;
+      // Draw with bob + slight rotation for animation
+      ctx.save();
+      ctx.translate(px+8, py+11+bob);
+      if(thinking) ctx.rotate(Math.sin(f*0.07)*0.05);
+      if(typing && f%8 < 4) ctx.translate(0, -0.5);
+      ctx.imageSmoothingEnabled = false;
+      // Scale sprite to fit ~28x28 display area
+      const scale = Math.min(28/sw, 28/sh);
+      ctx.drawImage(sprite, -sw*scale/2, -sh*scale/2, sw*scale, sh*scale);
+      ctx.restore();
+
+      // Typing hands effect — small white dots below sprite
+      if(typing) {
+        ctx.fillStyle='rgba(255,255,255,0.6)';
+        const handY = py+24+bob;
+        if(f%6<3) { ctx.fillRect(px+2,handY,3,2); ctx.fillRect(px+11,handY,3,2); }
+      }
+    } else {
+      // --- FALLBACK: drawn character ---
+      ctx.fillStyle='#1c1917';
+      ctx.fillRect(px+2, py+19+bob+legSwing, 5, 3);
+      ctx.fillRect(px+9, py+19+bob-legSwing, 5, 3);
+      ctx.fillStyle=pants;
+      ctx.fillRect(px+3, py+13+bob+legSwing, 4, 7);
+      ctx.fillRect(px+9, py+13+bob-legSwing, 4, 7);
+      ctx.fillStyle='rgba(0,0,0,0.4)'; ctx.fillRect(px+2,py+12+bob,12,2);
+      ctx.fillStyle=shirt;
+      ctx.fillRect(px+2, py+7+bob, 12, 7);
+      ctx.fillStyle=shirt;
+      ctx.fillRect(px-1, py+7+bob-armSwing, 4, 8);
+      ctx.fillStyle='#fde68a'; ctx.fillRect(px-1, py+14+bob-armSwing, 4, 2);
+      ctx.fillStyle=shirt;
+      ctx.fillRect(px+13, py+7+bob+armSwing, 4, 8);
+      ctx.fillStyle='#fde68a'; ctx.fillRect(px+13, py+14+bob+armSwing, 4, 2);
+      ctx.fillStyle='rgba(0,0,0,0.2)'; ctx.fillRect(px+6,py+6+bob,4,3);
+      ctx.fillStyle='#fde68a'; ctx.fillRect(px+6,py+5+bob,4,3);
+      ctx.save(); ctx.translate(px+8, py+3+bob);
+      ctx.rotate(headTilt*Math.PI/180);
+      ctx.fillStyle=hair; ctx.fillRect(-6,-4,12,7);
+      ctx.fillStyle='#fde68a'; ctx.fillRect(-5,-1,10,8);
+      ctx.fillStyle=hair;
+      ctx.fillRect(-6,-4,12,4);
+      ctx.fillRect(-6,-1,2,5);
+      ctx.fillRect(4,-1,2,3);
+      if(!blink) {
+        ctx.fillStyle='#1c1917'; ctx.fillRect(-3,1,2,3); ctx.fillRect(2,1,2,3);
+        ctx.fillStyle='#fff'; ctx.fillRect(-3,1,1,1); ctx.fillRect(2,1,1,1);
+      } else {
+        ctx.fillStyle='#1c1917'; ctx.fillRect(-3,2,2,1); ctx.fillRect(2,2,2,1);
+      }
+      if(typing&&f%6<3) { ctx.fillStyle='#7f1d1d'; ctx.fillRect(-1,5,3,2); }
+      else { ctx.fillStyle='#b45309'; ctx.fillRect(-2,5,5,1); }
+      ctx.restore();
+    }
+
+    // Speech bubble
+    if(ag.bubble) {
+      const bx=px+18, by=py-4;
+      const txt=ag.bubble.substring(0,18);
+      const bw=txt.length*5+8;
+      ctx.fillStyle='rgba(255,255,255,0.96)';
+      ctx.beginPath(); ctx.roundRect(bx,by-18,bw,20,4); ctx.fill();
+      ctx.strokeStyle='#d1d5db'; ctx.lineWidth=1; ctx.stroke();
+      // Tail
+      ctx.fillStyle='rgba(255,255,255,0.96)';
+      ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(bx-5,by+5); ctx.lineTo(bx+5,by); ctx.fill();
+      // Text
+      ctx.fillStyle='#111'; ctx.font='bold 7px monospace';
+      ctx.fillText(txt,bx+4,by-5);
+    }
+
+    // Name label (small, below character)
+    const labels={contenido:'Contenido',reportes:'Reportes',ops:'Ops',kb:'KB',orchestrator:'Orquestador'};
+    const colors={contenido:'#f59e0b',reportes:'#60a5fa',ops:'#4ade80',kb:'#c084fc',orchestrator:'#818cf8'};
+    if(labels[id]) {
+      ctx.fillStyle=colors[id]||'#aaa'; ctx.font='7px monospace';
+      ctx.textAlign='center'; ctx.fillText(labels[id],px+8,py+28); ctx.textAlign='left';
+    }
+  },
+
+  setAgentState(id, state, bubble) {
+    const ag = this.agents[id];
+    if(!ag) return;
+    ag.state=state; ag.bubble=bubble||'';
+    if(state==='typing'||state==='thinking'||state==='done') {
+      ag.tx=ag.deskTx; ag.ty=ag.deskTy;
+      if(id==='orchestrator') ag.hidden=false;
+    } else {
+      ag.tx=ag.deskTx; ag.ty=ag.deskTy+32;
+      if(id==='orchestrator') { ag.tx=240; ag.ty=175; setTimeout(()=>{ if(ag.state==='idle') ag.hidden=true; },1500); }
+    }
+    // Update status bar
+    const st=document.getElementById('pxst-'+id);
+    const stateMap={typing:'trabajando',thinking:'pensando',idle:'idle',done:'✅ listo',walking:'caminando'};
+    if(st) {
+      st.className='px-agent-st'+(state==='typing'||state==='done'?' active':state==='thinking'?' thinking':'');
+      const dot=state==='typing'||state==='done'?'dot-on':state==='thinking'?'dot-idle':'dot-off';
+      st.innerHTML=`<span class="dot ${dot}"></span>${id}: ${stateMap[state]||state}`;
+    }
+  },
+
+  allIdle() {
+    for(const [id,ag] of Object.entries(this.agents)) {
+      ag.state='idle'; ag.bubble='';
+      ag.tx=ag.deskTx; ag.ty=ag.deskTy+32;
+      if(id==='orchestrator'){ag.hidden=true;ag.tx=240;ag.ty=175;}
+      const st=document.getElementById('pxst-'+id);
+      if(st){st.className='px-agent-st';st.innerHTML=`<span class="dot dot-idle"></span>${id}: idle`;}
+    }
+    const txt=document.getElementById('px-status-text');
+    if(txt) txt.textContent='agentes en espera';
+  }
+};
+
+function handleMissionKey(e) {
+  if(e.key==='Enter' && !e.shiftKey) { e.preventDefault(); runMission(); }
+}
+
+function clearMission() {
+  missionThread = [];
+  const thread = document.getElementById('mission-thread');
+  if(thread) thread.innerHTML = '<div class="mission-empty">Los agentes colaborarán aquí para resolver tu misión.<br>Escribe algo arriba o elige una misión rápida.</div>';
+}
+
+function renderMissionThread() {
+  const thread = document.getElementById('mission-thread');
+  if(!thread) return;
+  if(!missionThread.length) {
+    thread.innerHTML = '<div class="mission-empty">Los agentes colaborarán aquí para resolver tu misión.<br>Escribe algo arriba o elige una misión rápida.</div>';
+    return;
+  }
+  thread.innerHTML = missionThread.map(m => {
+    const ag = AGENT_COLORS[m.agent] || AGENT_COLORS.system;
+    const dot = m.agent === 'user' ? 'dot-on' : m.agent === 'orchestrator' ? 'dot-idle' : 'dot-on';
+    return `<div class="mission-msg ${ag.cls}">
+      <div class="mission-sender"><span class="dot ${dot}"></span>${ag.label}</div>
+      <div class="mission-body">${String(m.content).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')}</div>
+    </div>`;
+  }).join('');
+  thread.scrollTop = thread.scrollHeight;
+}
+
+function addMissionTyping(agentId) {
+  const thread = document.getElementById('mission-thread');
+  if(!thread) return;
+  const ag = AGENT_COLORS[agentId] || AGENT_COLORS.system;
+  const typing = document.createElement('div');
+  typing.id = 'mission-typing';
+  typing.className = `mission-msg ${ag.cls}`;
+  typing.innerHTML = `<div class="mission-sender">${ag.label}</div><div class="mission-typing"><span>●</span><span>●</span><span>●</span></div>`;
+  thread.appendChild(typing);
+  thread.scrollTop = thread.scrollHeight;
+}
+
+function removeMissionTyping() {
+  document.getElementById('mission-typing')?.remove();
+}
+
+async function callClaude(systemPrompt, messages, maxTokens=800) {
+  const apiKey = LS.get('apikey');
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
+    },
+    body: JSON.stringify({
+      model:'claude-sonnet-4-20250514',
+      max_tokens: maxTokens,
+      system: systemPrompt,
+      messages
+    })
+  });
+  const data = await resp.json();
+  return data.content?.map(b=>b.text||'').join('') || (data.error?.message || 'Error.');
+}
+
+async function runMission() {
+  const ta = document.getElementById('mission-ta');
+  const btn = document.getElementById('mission-btn');
+  const thread = document.getElementById('mission-thread');
+  if(!ta || !btn) return;
+
+  const missionText = ta.value.trim();
+  if(!missionText) return;
+
+  const apiKey = LS.get('apikey');
+  if(!apiKey) { 
+    missionThread.push({ agent:'system', content:'⚙️ API key no configurada.\n\nVe a ⚙ Ajustes (arriba a la derecha) y pega tu clave de Anthropic (sk-ant-...).\n\nSi ya la tenías en otra versión del archivo, debes volver a ingresarla aquí.' });
+    renderMissionThread();
+    btn.disabled = false;
+    return; 
+  }
+
+  ta.value = '';
+  btn.disabled = true;
+
+  // Clear empty state and add user message
+  if(!missionThread.length && thread) thread.innerHTML = '';
+  missionThread.push({ agent:'user', content: missionText });
+  renderMissionThread();
+
+  // Context for orchestrator
+  const clients = getClients();
+  const tasks = getTasks();
+  const content = getContent();
+  const contextStr = `CLIENTES ACTIVOS: ${clients.filter(c=>c.status==='active').map(c=>c.name).join(', ')||'ninguno'}\nTAREAS PENDIENTES: ${tasks.filter(t=>t.status!=='done').length} tareas\nCONTENIDO ACTIVO: ${content.filter(c=>c.status==='published'||c.status==='active').length} piezas`;
+
+  // Update pixel office status
+  const pxTxt = document.getElementById('px-status-text');
+  if(pxTxt) pxTxt.textContent = '🧠 Orquestador planificando...';
+  PxGame.setAgentState('orchestrator','thinking','planificando...');
+
+  // Step 1: Orchestrator plans
+  addMissionTyping('orchestrator');
+  const orchestratorSystem = `Eres el orquestador del War Room de Fullsite, agencia de marketing digital en Monterrey.
+Agentes disponibles: contenido, reportes, ops, kb.
+- contenido: posts, copies, respuestas reseñas, ideas contenido
+- reportes: métricas, KPIs, análisis campañas
+- ops: SOPs, checklists, prioridades, organización
+- kb: información sobre clientes y negocio
+
+${contextStr}
+
+INSTRUCCIÓN CRÍTICA: Responde ÚNICAMENTE con el siguiente JSON. Cero texto antes o después. Cero backticks. Solo el JSON:
+{"plan":"descripción breve de qué harás","agents":[{"id":"contenido","task":"instrucción"},{"id":"ops","task":"instrucción"}]}
+
+Usa 1-3 agentes según necesites. Ejemplos de id válidos: contenido, reportes, ops, kb.`;
+
+  let orchestratorReply = '';
+  try {
+    orchestratorReply = await callClaude(orchestratorSystem, [{ role:'user', content: missionText }], 600);
+    
+    // Robust JSON extraction
+    let plan;
+    try {
+      // Try direct parse first
+      plan = JSON.parse(orchestratorReply.trim());
+    } catch {
+      // Try extracting JSON object from response
+      const jsonMatch = orchestratorReply.match(/\{[\s\S]*?\}/);
+      if(!jsonMatch) {
+        // Fallback: send to single best agent based on keywords
+        const lower = missionText.toLowerCase();
+        const agentId = lower.includes('reseña')||lower.includes('post')||lower.includes('contenido')||lower.includes('reel')||lower.includes('copy') ? 'contenido'
+          : lower.includes('métrica')||lower.includes('reporte')||lower.includes('ads')||lower.includes('campaña') ? 'reportes'
+          : lower.includes('sop')||lower.includes('tarea')||lower.includes('proceso')||lower.includes('ops') ? 'ops'
+          : lower.includes('cliente')||lower.includes('amalay')||lower.includes('info') ? 'kb'
+          : 'contenido';
+        plan = { plan: `Delegando al agente ${agentId}`, agents:[{id: agentId, task: missionText}] };
+      } else {
+        try { plan = JSON.parse(jsonMatch[0]); }
+        catch { plan = { plan: 'Procesando misión', agents:[{id:'ops', task: missionText}] }; }
+      }
+    }
+
+    removeMissionTyping();
+    missionThread.push({ agent:'orchestrator', content:`📋 Plan: ${plan.plan}\n\nAgentes: ${plan.agents.map(a=>a.id).join(' → ')}` });
+    renderMissionThread();
+    PxGame.setAgentState('orchestrator','idle','');
+
+    // Step 2: Run each agent in sequence
+    let previousOutputs = '';
+    for(const step of plan.agents) {
+      const agentId = step.id;
+      if(!AGENT_DEFS[agentId]) continue;
+
+      // Animate: agent walks to desk and starts typing
+      if(pxTxt) pxTxt.textContent = `${AGENT_DEFS[agentId].name} trabajando...`;
+      PxGame.setAgentState(agentId, 'walking', 'recibiendo tarea...');
+      await new Promise(r => setTimeout(r, 600));
+      PxGame.setAgentState(agentId, 'typing', '✍️ escribiendo...');
+
+      addMissionTyping(agentId);
+
+      const agentSystemPrompt = buildSystemPrompt(agentId);
+      const agentUserMsg = previousOutputs
+        ? `MISIÓN ORIGINAL: ${missionText}\n\nTU TAREA ESPECÍFICA: ${step.task}\n\nCONTEXTO DE AGENTES ANTERIORES:\n${previousOutputs}`
+        : `MISIÓN: ${missionText}\n\nTU TAREA: ${step.task}`;
+
+      try {
+        const agentReply = await callClaude(agentSystemPrompt, [{ role:'user', content: agentUserMsg }], 900);
+        removeMissionTyping();
+        missionThread.push({ agent: agentId, content: agentReply });
+        previousOutputs += `\n\n--- ${AGENT_DEFS[agentId].name} ---\n${agentReply}`;
+        renderMissionThread();
+
+        // Show done bubble, then go idle
+        PxGame.setAgentState(agentId, 'done', '✅ listo');
+        setTimeout(() => PxGame.setAgentState(agentId,'idle',''), 3000);
+      } catch(e) {
+        removeMissionTyping();
+        missionThread.push({ agent:'system', content:`Error en agente ${agentId}: ${e.message}` });
+        renderMissionThread();
+        PxGame.setAgentState(agentId,'idle','❌ error');
+      }
+    }
+
+    // Step 3: Final summary if multiple agents
+    if(plan.agents.length > 1) {
+      if(pxTxt) pxTxt.textContent = '🧠 Orquestador resumiendo...';
+      PxGame.setAgentState('orchestrator','thinking','resumiendo...');
+      addMissionTyping('orchestrator');
+      const summaryPrompt = `Eres el orquestador de Fullsite. Resume en 2-3 líneas los resultados de los agentes para Daniel. Sé concreto y accionable. En español.`;
+      const summary = await callClaude(summaryPrompt, [{ role:'user', content:`Misión: ${missionText}\n\nResultados:\n${previousOutputs}` }], 300);
+      removeMissionTyping();
+      missionThread.push({ agent:'orchestrator', content:`✅ Misión completada.\n\n${summary}` });
+      renderMissionThread();
+      PxGame.setAgentState('orchestrator','idle','✅ misión completada');
+    }
+
+    if(pxTxt) pxTxt.textContent = '✅ misión completada — agentes en espera';
+    setTimeout(pxAllIdle, 4000);
+
+  } catch(e) {
+    removeMissionTyping();
+    missionThread.push({ agent:'system', content:`Error al planear la misión: ${e.message}\n\nVerifica tu API key en ⚙ Ajustes.` });
+    renderMissionThread();
+    PxGame.allIdle();
+  }
+
+  btn.disabled = false;
+}
+
+// ============================================================
 // TAB RENDERING
 // ============================================================
 const TABS = ['warroom','clientes','tareas','contenido','reportes'];
@@ -572,7 +1193,6 @@ function renderWarRoom() {
     </div>`;
 
   document.getElementById('tab-warroom').innerHTML = `
-    <h1 class="ph">War Room</h1>
     <p class="ps" id="wr-date">FULLSITE · ${dateStr()}</p>
     <div class="kpis">
       <div class="kpi"><div class="kpi-l">Clientes activos</div><div class="kpi-v">${active}</div><div class="kpi-d">${active===1?clients.filter(c=>c.status==='active')[0]?.name.split(' ')[0]+' activo':'clientes activos'}</div></div>
@@ -597,7 +1217,46 @@ function renderWarRoom() {
       ${kanbanCol('Pendiente', pending, 'var(--amber)')}
       ${kanbanCol('En progreso', inProgress, 'var(--blue)')}
       ${kanbanCol('Completado', done, 'var(--green)')}
-    </div>`;
+    </div>
+    <div style="margin-top:22px">
+      <div class="sec"><span class="sec-t">Misión Multi-Agente</span><span class="mission-badge">BETA</span></div>
+      <div class="pixel-office-wrap">
+        <div class="pixel-office-header">
+          <div class="pixel-office-title">⬡ Fullsite HQ</div>
+          <div class="pixel-office-sub" id="px-status-text">agentes en espera</div>
+        </div>
+        <canvas id="px-canvas" style="width:100%;height:210px;image-rendering:pixelated;display:block;border-radius:8px;background:#1a1208;cursor:default;"></canvas>
+        <div class="px-status" id="px-status-bar">
+          <div class="px-agent-st" id="pxst-orchestrator"><span class="dot dot-idle"></span>Orquestador: en espera</div>
+          <div class="px-agent-st" id="pxst-contenido"><span class="dot dot-idle"></span>Contenido: idle</div>
+          <div class="px-agent-st" id="pxst-reportes"><span class="dot dot-idle"></span>Reportes: idle</div>
+          <div class="px-agent-st" id="pxst-ops"><span class="dot dot-idle"></span>Ops: idle</div>
+          <div class="px-agent-st" id="pxst-kb"><span class="dot dot-idle"></span>KB: idle</div>
+        </div>
+      </div>
+      <div class="mission-panel">
+        <div class="mission-header">
+          <div class="mission-title">⬡ War Room — Colaboración entre agentes</div>
+          <button onclick="clearMission()" style="background:none;border:none;color:var(--dim);font-size:10px;font-family:'JetBrains Mono',monospace;cursor:pointer" title="Limpiar">✕ limpiar</button>
+        </div>
+        <div class="mission-quick">
+          <button class="mission-quick-btn" onclick="setMission('Crea el plan de contenido para AMALAY esta semana: posts, reels e ideas')">📅 Plan semanal</button>
+          <button class="mission-quick-btn" onclick="setMission('Analiza el estado actual de AMALAY y dame los próximos 3 pasos más importantes')">🎯 Próximos pasos</button>
+          <button class="mission-quick-btn" onclick="setMission('Genera 3 respuestas a reseñas de Google listas para publicar en AMALAY')">⭐ Respuestas GBP</button>
+          <button class="mission-quick-btn" onclick="setMission('Crea un SOP para el proceso de respuesta a reseñas de AMALAY')">📋 Crear SOP</button>
+          <button class="mission-quick-btn" onclick="setMission('Genera ideas de contenido para esta semana en Instagram y GBP')">💡 Ideas contenido</button>
+        </div>
+        <div class="mission-input-row">
+          <textarea class="mission-ta" id="mission-ta" placeholder="Dale una misión al War Room... Los agentes colaborarán para resolverla." onkeydown="handleMissionKey(event)"></textarea>
+          <button class="mission-btn" id="mission-btn" onclick="runMission()">Ejecutar →</button>
+        </div>
+        <div class="mission-thread" id="mission-thread">
+          <div class="mission-empty">Los agentes colaborarán aquí para resolver tu misión.<br>Escribe algo arriba o elige una misión rápida.</div>
+        </div>
+      </div>
+    </div>\`;
+  // Initialize canvas game after DOM renders
+  requestAnimationFrame(() => PxGame.init());
 }
 
 function renderClientes() {

@@ -1,0 +1,1562 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fullsite — War Room</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#08080a;--surface:#111114;--card:#18181c;--border:#1c1c1f;
+  --border2:#27272a;--text:#e4e4e2;--muted:#52525b;--dim:#2a2a2f;
+  --green:#4ade80;--green-bg:#052e16;--amber:#f59e0b;--blue:#60a5fa;
+  --red:#f87171;--red-bg:#3a0d0d;--amber-bg:#301604;
+}
+body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:13px;}
+button{cursor:pointer;font-family:'Syne',sans-serif;}
+input,textarea,select{font-family:'Syne',sans-serif;outline:none;}
+/* ---- SETUP ---- */
+#setup{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;}
+.setup-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px;width:100%;max-width:400px;text-align:center;}
+.setup-logo{font-weight:800;font-size:22px;letter-spacing:.2em;text-transform:uppercase;margin-bottom:8px;}
+.setup-logo em{color:var(--green);font-style:normal;}
+.setup-sub{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--dim);margin-bottom:32px;}
+.setup-label{font-size:11px;color:var(--muted);text-align:left;margin-bottom:6px;display:block;}
+.setup-input{width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:12px;font-family:'JetBrains Mono',monospace;margin-bottom:16px;}
+.setup-input:focus{border-color:var(--border2);}
+.setup-btn{width:100%;background:var(--green);color:var(--green-bg);border:none;border-radius:8px;padding:11px;font-weight:700;font-size:13px;letter-spacing:.04em;transition:background .15s;}
+.setup-btn:hover{background:#86efac;}
+.setup-note{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim);margin-top:14px;line-height:1.6;}
+/* ---- APP ---- */
+#app{display:none;flex-direction:column;height:100vh;}
+/* Topbar */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:48px;border-bottom:1px solid var(--border);background:var(--bg);flex-shrink:0;position:sticky;top:0;z-index:100;}
+.logo{font-weight:800;font-size:14px;letter-spacing:.18em;text-transform:uppercase;}
+.logo em{color:var(--green);font-style:normal;}
+.pills{display:flex;gap:14px;}
+.pill{display:flex;align-items:center;gap:5px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--dim);cursor:pointer;transition:color .15s;background:none;border:none;padding:0;}
+.pill:hover{color:#a0a0a8;}
+.pill.sel{color:var(--text);}
+.dot{width:6px;height:6px;border-radius:50%;display:inline-block;flex-shrink:0;}
+.dot-on{background:var(--green);animation:blink 2.5s ease-in-out infinite;}
+.dot-idle{background:var(--amber);}
+.dot-off{background:var(--dim);}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+.topbar-right{display:flex;align-items:center;gap:12px;}
+.clk{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--dim);}
+.icon-btn{background:none;border:none;color:var(--dim);font-size:16px;padding:4px;transition:color .15s;line-height:1;}
+.icon-btn:hover{color:var(--muted);}
+/* Layout */
+.layout{display:flex;flex:1;min-height:0;overflow:hidden;}
+/* Sidebar */
+.sidebar{width:192px;border-right:1px solid var(--border);padding:16px 0;display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;}
+.nl{padding:14px 18px 6px;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);}
+.ni{display:flex;align-items:center;gap:9px;width:100%;padding:9px 18px;background:none;border:none;border-left:2px solid transparent;color:#38383f;font-size:12px;font-weight:500;text-align:left;transition:all .12s;letter-spacing:.02em;}
+.ni:hover{color:#a0a0a8;background:#0f0f12;}
+.ni.on{color:var(--text);border-left-color:var(--green);background:#0f0f12;}
+/* Main */
+.main{flex:1;overflow:auto;padding:24px;min-height:0;}
+/* Chat panel */
+.cp{width:0;overflow:hidden;transition:width .2s;border-left:0px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;}
+.cp.open{width:300px;border-left-width:1px;}
+.cp-head{padding:12px 14px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.cp-title{font-size:12px;font-weight:700;}
+.cp-sub{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim);margin-top:2px;}
+.cp-close{background:none;border:none;color:var(--dim);font-size:18px;padding:0;line-height:1;transition:color .15s;}
+.cp-close:hover{color:var(--muted);}
+.cp-msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px;}
+.msg{display:flex;flex-direction:column;gap:3px;}
+.msg-who{font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--dim);letter-spacing:.06em;text-transform:uppercase;}
+.msg-body{font-size:11px;line-height:1.6;color:#c0c0c8;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 11px;white-space:pre-wrap;word-break:break-word;}
+.msg.user .msg-body{background:#0f1a12;border-color:#1a2e1e;color:#a8d4b0;}
+.msg.user .msg-who{text-align:right;}
+.msg.user{align-items:flex-end;}
+.cp-input-row{display:flex;gap:6px;padding:10px;border-top:1px solid var(--border);flex-shrink:0;}
+.cp-ta{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:8px 10px;color:var(--text);font-size:11px;resize:none;height:36px;min-height:36px;max-height:100px;transition:border-color .15s;line-height:1.4;}
+.cp-ta:focus{border-color:var(--border2);}
+.cp-ta::placeholder{color:var(--dim);}
+.send-btn{background:var(--green);border:none;border-radius:7px;width:34px;height:36px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s;}
+.send-btn:hover{background:#86efac;}
+.send-btn:disabled{background:var(--card);cursor:not-allowed;}
+.send-btn svg{width:14px;height:14px;fill:#052e16;}
+/* Page headers */
+.ph{font-size:20px;font-weight:800;color:#fafafa;margin-bottom:3px;letter-spacing:-.01em;}
+.ps{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--dim);margin-bottom:22px;}
+/* KPIs */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:22px;}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;}
+.kpi-l{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim);letter-spacing:.08em;text-transform:uppercase;margin-bottom:7px;}
+.kpi-v{font-size:26px;font-weight:800;color:#fafafa;line-height:1;margin-bottom:3px;}
+.kpi-d{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--green);}
+.kpi-d.warn{color:var(--amber);}
+/* Agents */
+.ags{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:22px;}
+.ag{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;transition:all .15s;}
+.ag:hover{border-color:#4ade8055;background:#0a150c;}
+.ag.sel{border-color:var(--green);background:#071208;}
+.ag-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;}
+.ag-name{font-size:12px;font-weight:700;}
+.ag-st{display:flex;align-items:center;gap:4px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim);}
+.ag-role{font-size:10px;color:var(--dim);margin-bottom:7px;}
+.ag-hint{font-family:'JetBrains Mono',monospace;font-size:8px;color:#1a3020;}
+.ag.sel .ag-hint,.ag:hover .ag-hint{color:#2a6038;}
+/* Section */
+.sec{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.sec-t{font-size:12px;font-weight:600;color:var(--muted);}
+.sec-btn{display:flex;align-items:center;gap:5px;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:5px 11px;font-size:11px;font-weight:600;color:var(--muted);transition:all .15s;}
+.sec-btn:hover{color:var(--text);border-color:var(--border2);}
+/* Kanban */
+.kanban{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.kcol{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;}
+.kcol-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:9px;border-bottom:1px solid var(--border);}
+.kcol-t{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);}
+.kcol-n{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim);background:var(--card);padding:1px 6px;border-radius:8px;}
+.tk{background:var(--card);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;margin-bottom:7px;transition:border-color .15s;}
+.tk:hover{border-color:#3f3f46;}
+.tk-t{font-size:11px;color:var(--text);margin-bottom:7px;line-height:1.45;}
+.tk-m{display:flex;align-items:center;justify-content:space-between;gap:6px;}
+.tk-cl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim);}
+.tk-actions{display:flex;gap:4px;align-items:center;}
+.tk-advance{background:none;border:1px solid var(--border);border-radius:4px;color:var(--dim);font-size:9px;padding:1px 6px;font-family:'JetBrains Mono',monospace;transition:all .15s;}
+.tk-advance:hover{color:var(--text);border-color:var(--border2);}
+.tk-del{background:none;border:none;color:var(--dim);font-size:12px;padding:0 2px;transition:color .15s;line-height:1;}
+.tk-del:hover{color:var(--red);}
+/* Badges */
+.bd{font-family:'JetBrains Mono',monospace;font-size:9px;padding:2px 6px;border-radius:4px;}
+.bh{background:var(--red-bg);color:var(--red);}
+.bm{background:var(--amber-bg);color:var(--amber);}
+.bl{background:var(--card);color:var(--dim);}
+.bok{background:var(--green-bg);color:var(--green);}
+/* Panel / Table */
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:16px;}
+table{width:100%;border-collapse:collapse;}
+th{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);padding:10px 16px;text-align:left;border-bottom:1px solid var(--border);font-weight:400;}
+td{padding:11px 16px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--border);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:#0c0c0f;}
+.tn{color:var(--text) !important;font-weight:600;}
+.tags{display:flex;flex-wrap:wrap;gap:4px;}
+.tag{font-family:'JetBrains Mono',monospace;font-size:9px;padding:2px 6px;border-radius:3px;background:var(--card);color:#52525b;}
+/* Content grid */
+.cgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.cc{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;transition:border-color .15s;}
+.cc:hover{border-color:var(--border2);}
+.cc-plt{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;margin-bottom:7px;}
+.cc-t{font-size:11px;color:var(--text);margin-bottom:10px;line-height:1.4;}
+.cc-f{display:flex;align-items:center;justify-content:space-between;}
+.cc-d{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim);}
+.cc-del{background:none;border:none;color:var(--dim);font-size:12px;padding:0;transition:color .15s;}
+.cc-del:hover{color:var(--red);}
+.bdp{font-family:'JetBrains Mono',monospace;font-size:9px;padding:2px 6px;border-radius:4px;}
+.pub{background:var(--green-bg);color:var(--green);}
+.act{background:var(--green-bg);color:var(--green);}
+.dft{background:var(--card);color:var(--muted);}
+.idea{background:#16142a;color:#818cf8;}
+/* Report */
+.rpt{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;}
+.rpt-s{margin-bottom:16px;}
+.rpt-h{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px;}
+.rpt-i{display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:11px;color:#8a8a98;line-height:1.55;}
+.rpt-i:last-child{border-bottom:none;}
+.rd{width:4px;height:4px;border-radius:50%;background:var(--green);margin-top:6px;flex-shrink:0;}
+.rd.w{background:var(--amber);}
+.rd.i{background:var(--blue);}
+hr.div{border:none;border-top:1px solid var(--border);margin:16px 0;}
+/* Detail grid */
+.dtl{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:16px;}
+.dtl-l{font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--dim);margin-bottom:3px;text-transform:uppercase;letter-spacing:.08em;}
+.dtl-v{font-size:11px;color:var(--muted);}
+/* Modal */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center;}
+.overlay.show{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:24px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto;}
+.modal-h{font-size:15px;font-weight:700;margin-bottom:20px;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px;}
+.field input,.field textarea,.field select{width:100%;background:var(--card);border:1px solid var(--border);border-radius:7px;padding:9px 12px;color:var(--text);font-size:12px;transition:border-color .15s;}
+.field input:focus,.field textarea:focus,.field select:focus{border-color:var(--border2);}
+.field textarea{min-height:70px;resize:vertical;}
+.field select option{background:var(--surface);}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;}
+.btn-cancel{background:transparent;border:1px solid var(--border);border-radius:7px;padding:8px 16px;color:var(--muted);font-size:12px;font-weight:600;transition:all .15s;}
+.btn-cancel:hover{border-color:var(--border2);color:var(--text);}
+.btn-save{background:var(--green);border:none;border-radius:7px;padding:8px 18px;color:var(--green-bg);font-size:12px;font-weight:700;transition:background .15s;}
+.btn-save:hover{background:#86efac;}
+/* Empty state */
+.empty{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--dim);text-align:center;padding:20px;line-height:1.6;}
+/* Add card placeholder */
+.add-card{background:transparent;border:1px dashed var(--border);border-radius:10px;padding:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--dim);width:100%;}
+.add-card:hover{border-color:var(--border2);color:var(--muted);}
+/* Status dot row */
+.st{display:flex;align-items:center;gap:5px;font-family:'JetBrains Mono',monospace;font-size:10px;}
+.st-act{color:var(--green);}
+.st-pro{color:var(--dim);}
+/* Settings panel */
+.settings-row{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border);}
+.settings-row:last-child{border-bottom:none;}
+.settings-label{font-size:12px;color:var(--text);flex:1;}
+.settings-val{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--dim);}
+/* Scrollbar */
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+/* Mission Panel */
+.mission-panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:22px;}
+.mission-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.mission-title{font-size:12px;font-weight:700;color:var(--text);}
+.mission-badge{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--green);background:var(--green-bg);padding:2px 8px;border-radius:4px;}
+.mission-input-row{display:flex;gap:8px;margin-bottom:12px;}
+.mission-ta{flex:1;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:12px;font-family:'Syne',sans-serif;resize:none;height:42px;line-height:1.4;transition:border-color .15s;}
+.mission-ta:focus{border-color:var(--border2);outline:none;}
+.mission-ta::placeholder{color:var(--dim);}
+.mission-btn{background:var(--green);border:none;border-radius:8px;padding:0 18px;color:var(--green-bg);font-size:12px;font-weight:700;font-family:'Syne',sans-serif;white-space:nowrap;transition:background .15s;cursor:pointer;}
+.mission-btn:hover{background:#86efac;}
+.mission-btn:disabled{background:var(--card);color:var(--dim);cursor:not-allowed;}
+.mission-thread{display:flex;flex-direction:column;gap:8px;max-height:340px;overflow-y:auto;}
+.mission-msg{display:flex;flex-direction:column;gap:3px;}
+.mission-sender{font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:.08em;text-transform:uppercase;display:flex;align-items:center;gap:5px;}
+.mission-sender .dot{width:5px;height:5px;}
+.mission-body{font-size:11px;line-height:1.6;padding:10px 13px;border-radius:8px;white-space:pre-wrap;word-break:break-word;}
+.mission-msg.user .mission-body{background:#0f1a12;border:1px solid #1a2e1e;color:#a8d4b0;}
+.mission-msg.user .mission-sender{justify-content:flex-end;color:var(--green);}
+.mission-msg.orchestrator .mission-body{background:#0e0e20;border:1px solid #1e1e3a;color:#a0a8e0;}
+.mission-msg.orchestrator .mission-sender{color:#818cf8;}
+.mission-msg.contenido .mission-body{background:#1a100a;border:1px solid #2e1e0a;color:#d4c0a0;}
+.mission-msg.contenido .mission-sender{color:var(--amber);}
+.mission-msg.reportes .mission-body{background:#0a101a;border:1px solid #0a1e2e;color:#a0c0d4;}
+.mission-msg.reportes .mission-sender{color:var(--blue);}
+.mission-msg.ops .mission-body{background:#0a1a10;border:1px solid #0a2e1a;color:#a0d4b8;}
+.mission-msg.ops .mission-sender{color:var(--green);}
+.mission-msg.kb .mission-body{background:#140a1a;border:1px solid #200a2e;color:#c0a0d4;}
+.mission-msg.kb .mission-sender{color:#c084fc;}
+.mission-msg.system .mission-body{background:var(--card);border:1px solid var(--border);color:var(--dim);font-family:'JetBrains Mono',monospace;font-size:9px;}
+.mission-msg.system .mission-sender{color:var(--dim);}
+.mission-typing{display:flex;align-items:center;gap:4px;padding:8px 13px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim);}
+.mission-typing span{animation:blink 1.2s ease-in-out infinite;}
+.mission-typing span:nth-child(2){animation-delay:.2s;}
+.mission-typing span:nth-child(3){animation-delay:.4s;}
+.mission-empty{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim);text-align:center;padding:16px;line-height:1.8;}
+.mission-quick{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;}
+.mission-quick-btn{background:var(--card);border:1px solid var(--border);border-radius:5px;padding:4px 10px;font-size:10px;color:var(--dim);font-family:'JetBrains Mono',monospace;cursor:pointer;transition:all .15s;}
+.mission-quick-btn:hover{border-color:var(--border2);color:var(--muted);}
+/* ---- PIXEL OFFICE ---- */
+.pixel-office-wrap{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:22px;overflow:hidden;}
+.pixel-office-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.pixel-office-title{font-size:12px;font-weight:700;color:var(--text);}
+.pixel-office-sub{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim);}
+.pixel-office{position:relative;width:100%;height:180px;background:#1a120a;border-radius:8px;overflow:hidden;image-rendering:pixelated;}
+.px-floor{position:absolute;inset:0;background:repeating-linear-gradient(90deg,#1e1408 0px,#1e1408 16px,#221608 16px,#221608 32px),repeating-linear-gradient(180deg,#1e1408 0px,#1e1408 16px,#221608 16px,#221608 32px);background-blend-mode:multiply;}
+.px-wall{position:absolute;top:0;left:0;right:0;height:40px;background:#0e0e1a;border-bottom:2px solid #1a1a2e;}
+.px-wall::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:#2a2a4a;}
+/* Desks */
+.px-desk{position:absolute;width:52px;height:32px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.px-desk-contenido{background:#2a1a08;border:1px solid #3a2a10;left:24px;top:48px;}
+.px-desk-reportes{background:#08101a;border:1px solid #102030;left:130px;top:48px;}
+.px-desk-ops{background:#081a10;border:1px solid #103020;left:236px;top:48px;}
+.px-desk-kb{background:#1a0818;border:1px solid #2a1028;left:342px;top:48px;}
+/* Monitor on desk */
+.px-monitor{position:absolute;width:18px;height:13px;background:#060610;border:1px solid #2a2a4a;border-radius:1px;top:-10px;left:17px;}
+.px-monitor::after{content:'';position:absolute;bottom:-4px;left:6px;width:6px;height:3px;background:#1a1a2a;}
+/* Characters */
+.px-char{position:absolute;width:36px;display:flex;flex-direction:column;align-items:center;transition:left .5s cubic-bezier(.4,0,.2,1),top .5s cubic-bezier(.4,0,.2,1);}
+@keyframes px-type{0%,100%{transform:translateY(0) rotate(0deg)}25%{transform:translateY(-1px) rotate(-1deg)}75%{transform:translateY(0px) rotate(1deg)}}
+@keyframes px-idle{0%,100%{transform:translateY(0)}50%{transform:translateY(-1px)}}
+@keyframes px-think{0%,100%{transform:rotate(0deg) translateY(0)}33%{transform:rotate(-3deg) translateY(-1px)}66%{transform:rotate(2deg) translateY(0)}}
+@keyframes px-walk{0%,100%{transform:translateX(0) rotate(0deg)}25%{transform:translateX(2px) rotate(2deg)}75%{transform:translateX(-2px) rotate(-2deg)}}
+@keyframes px-bounce{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-4px) scale(1.05)}}
+.px-char svg{display:block;}
+.px-char.typing svg{animation:px-type .25s infinite;}
+.px-char.idle svg{animation:px-idle 2.5s ease-in-out infinite;}
+.px-char.thinking svg{animation:px-think .9s ease-in-out infinite;}
+.px-char.walking svg{animation:px-walk .25s infinite;}
+.px-char.done svg{animation:px-bounce .4s ease-out 2;}
+/* Speech bubble */
+.px-bubble{position:absolute;background:#fafafa;border:1px solid #e0e0e0;border-radius:6px;padding:4px 7px;font-size:8px;font-family:'JetBrains Mono',monospace;color:#111;white-space:nowrap;max-width:100px;white-space:normal;line-height:1.3;pointer-events:none;z-index:10;top:-2px;left:18px;box-shadow:0 2px 8px rgba(0,0,0,.4);}
+.px-bubble::before{content:'';position:absolute;left:-5px;top:6px;width:0;height:0;border-top:4px solid transparent;border-bottom:4px solid transparent;border-right:5px solid #e0e0e0;}
+.px-bubble::after{content:'';position:absolute;left:-4px;top:7px;width:0;height:0;border-top:3px solid transparent;border-bottom:3px solid transparent;border-right:4px solid #fafafa;}
+/* Labels */
+.px-label{position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);font-family:'JetBrains Mono',monospace;font-size:7px;color:var(--dim);white-space:nowrap;}
+/* Plants and decorations */
+.px-plant{position:absolute;font-size:14px;line-height:1;}
+/* Status bar */
+.px-status{display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;}
+.px-agent-st{display:flex;align-items:center;gap:4px;font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--dim);}
+.px-agent-st .dot{width:5px;height:5px;}
+.px-agent-st.active{color:var(--green);}
+.px-agent-st.thinking{color:var(--amber);}
+</style>
+</head>
+<body>
+
+<!-- SETUP SCREEN -->
+<div id="setup">
+  <div class="setup-box">
+    <div class="setup-logo">Full<em>site</em></div>
+    <div class="setup-sub">war room · agencia digital</div>
+    <label class="setup-label">Clave API de Anthropic (Claude)</label>
+    <input class="setup-input" type="password" id="setup-key" placeholder="sk-ant-api03-..." autocomplete="off">
+    <button class="setup-btn" onclick="saveKey()">Entrar al War Room →</button>
+    <div class="setup-note">Tu clave se guarda solo en este navegador.<br>Consíguela en console.anthropic.com</div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <!-- Topbar -->
+  <div class="topbar">
+    <span class="logo">Full<em>site</em></span>
+    <div class="pills" id="pills"></div>
+    <div class="topbar-right">
+      <span class="clk" id="clk"></span>
+      <button class="icon-btn" onclick="openModal('client')" title="Nuevo cliente">＋</button>
+      <button class="icon-btn" onclick="showSettings()" title="Ajustes">⚙</button>
+    </div>
+  </div>
+  <div class="layout">
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="nl">Sistema</div>
+      <button class="ni on" onclick="showTab('warroom',this)">⬡ War Room</button>
+      <button class="ni" onclick="showTab('clientes',this)">◈ Clientes</button>
+      <button class="ni" onclick="showTab('tareas',this)">◻ Tareas</button>
+      <button class="ni" onclick="showTab('contenido',this)">◇ Contenido</button>
+      <button class="ni" onclick="showTab('reportes',this)">◈ Reportes</button>
+      <div class="nl" style="margin-top:16px">Agentes</div>
+      <button class="ni" onclick="openAgent('contenido')">· Contenido</button>
+      <button class="ni" onclick="openAgent('reportes')">· Reportes</button>
+      <button class="ni" onclick="openAgent('ops')">· Ops</button>
+      <button class="ni" onclick="openAgent('kb')">· AMALAY KB</button>
+    </nav>
+    <!-- Main -->
+    <main class="main">
+      <div id="tab-warroom"></div>
+      <div id="tab-clientes" style="display:none"></div>
+      <div id="tab-tareas" style="display:none"></div>
+      <div id="tab-contenido" style="display:none"></div>
+      <div id="tab-reportes" style="display:none"></div>
+    </main>
+    <!-- Chat panel -->
+    <div class="cp" id="cp">
+      <div class="cp-head">
+        <div><div class="cp-title" id="cp-name">Agente</div><div class="cp-sub" id="cp-role"></div></div>
+        <button class="cp-close" onclick="closeAgent()">✕</button>
+      </div>
+      <div class="cp-msgs" id="cp-msgs"></div>
+      <div class="cp-input-row">
+        <textarea class="cp-ta" id="cp-ta" placeholder="Escríbele al agente..." onkeydown="handleKey(event)"></textarea>
+        <button class="send-btn" id="send-btn" onclick="sendMsg()">
+          <svg viewBox="0 0 24 24"><path d="M2 21L23 12 2 3v7l15 2-15 2v7z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div class="overlay" id="overlay-client" onclick="if(event.target===this)closeModal('client')">
+  <div class="modal">
+    <div class="modal-h">Nuevo cliente</div>
+    <div class="field"><label>Nombre del negocio</label><input id="f-name" type="text" placeholder="Ej: AMALAY Coffee & Market"></div>
+    <div class="field"><label>Contacto</label><input id="f-contact" type="text" placeholder="Nombre del dueño o contacto"></div>
+    <div class="field"><label>Email</label><input id="f-email" type="email" placeholder="email@ejemplo.com"></div>
+    <div class="field"><label>Teléfono</label><input id="f-phone" type="text" placeholder="81 0000 0000"></div>
+    <div class="field"><label>Sitio web</label><input id="f-web" type="text" placeholder="ejemplo.com"></div>
+    <div class="field"><label>Servicios (separados por coma)</label><input id="f-services" type="text" placeholder="Web, Google Ads, GBP"></div>
+    <div class="field"><label>Presupuesto mensual</label><input id="f-budget" type="text" placeholder="MX$150/día"></div>
+    <div class="field"><label>Notas</label><textarea id="f-notes" placeholder="Información adicional, horarios, ubicación..."></textarea></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('client')">Cancelar</button>
+      <button class="btn-save" onclick="saveClient()">Guardar cliente</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-task" onclick="if(event.target===this)closeModal('task')">
+  <div class="modal">
+    <div class="modal-h">Nueva tarea</div>
+    <div class="field"><label>Título de la tarea</label><input id="t-title" type="text" placeholder="Ej: Publicar post semanal GBP"></div>
+    <div class="field"><label>Cliente</label><select id="t-client"></select></div>
+    <div class="field"><label>Agente responsable</label>
+      <select id="t-agent"><option value="Contenido">Contenido</option><option value="Reportes">Reportes</option><option value="Ops">Ops</option></select>
+    </div>
+    <div class="field"><label>Prioridad</label>
+      <select id="t-priority"><option value="high">Alta</option><option value="medium">Media</option><option value="low">Baja</option></select>
+    </div>
+    <div class="field"><label>Fecha límite</label><input id="t-due" type="text" placeholder="Ej: Esta semana, Hoy, 15 Abr"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('task')">Cancelar</button>
+      <button class="btn-save" onclick="saveTask()">Guardar tarea</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-content" onclick="if(event.target===this)closeModal('content')">
+  <div class="modal">
+    <div class="modal-h">Nuevo contenido</div>
+    <div class="field"><label>Título / descripción</label><input id="c-title" type="text" placeholder="Ej: Post brunch San Pedro"></div>
+    <div class="field"><label>Cliente</label><select id="c-client"></select></div>
+    <div class="field"><label>Plataforma</label>
+      <select id="c-platform"><option>GBP</option><option>Instagram</option><option>Facebook</option><option>TikTok</option><option>Google Ads</option><option>Google Reviews</option><option>WhatsApp</option></select>
+    </div>
+    <div class="field"><label>Estado</label>
+      <select id="c-status"><option value="idea">Idea</option><option value="draft">Borrador</option><option value="published">Publicado</option><option value="active">Activo</option></select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('content')">Cancelar</button>
+      <button class="btn-save" onclick="saveContent()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-settings" onclick="if(event.target===this)closeModal('settings')">
+  <div class="modal">
+    <div class="modal-h">Ajustes</div>
+    <div class="field"><label>API Key de Anthropic</label><input id="s-key" type="password" placeholder="sk-ant-..."></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('settings')">Cerrar</button>
+      <button class="btn-save" onclick="updateKey()">Guardar clave</button>
+    </div>
+    <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px;">
+      <button onclick="resetAll()" style="background:none;border:1px solid var(--red-bg);border-radius:7px;padding:7px 14px;color:var(--red);font-size:11px;font-weight:600;width:100%;">Borrar todos los datos y reiniciar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// STORAGE (localStorage — solo para API keys y chat)
+// ============================================================
+const LS = {
+  get: k => { try { return JSON.parse(localStorage.getItem('fs_'+k)); } catch { return null; } },
+  set: (k,v) => localStorage.setItem('fs_'+k, JSON.stringify(v)),
+  del: k => localStorage.removeItem('fs_'+k)
+};
+
+// ============================================================
+// SUPABASE
+// ============================================================
+const SB_URL = 'https://qjiomlvudfmzuvqvhwpk.supabase.co';
+const SB_KEY = 'sb_publishable_8_nNPHJT1RsfZhpXB6ARGA_6aOwZasM';
+const SB_H = { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
+
+async function sbGet(table, order='id') {
+  const r = await fetch(`${SB_URL}/rest/v1/${table}?order=${order}`, { headers: SB_H });
+  return r.json();
+}
+async function sbInsert(table, data) {
+  const r = await fetch(`${SB_URL}/rest/v1/${table}`, { method:'POST', headers: SB_H, body: JSON.stringify(data) });
+  return r.json();
+}
+async function sbUpdate(table, id, data) {
+  const r = await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`, { method:'PATCH', headers: SB_H, body: JSON.stringify(data) });
+  return r.json();
+}
+async function sbDelete(table, id) {
+  await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`, { method:'DELETE', headers: SB_H });
+}
+
+// Cache en memoria para render inmediato
+let _clients=[], _tasks=[], _content=[];
+
+async function loadAll() {
+  [_clients, _tasks, _content] = await Promise.all([sbGet('clients'), sbGet('tasks'), sbGet('content')]);
+}
+function getClients(){ return _clients; }
+function getTasks()  { return _tasks; }
+function getContent(){ return _content; }
+
+async function initData() { await loadAll(); }
+
+// ============================================================
+// AGENTS
+// ============================================================
+const AGENT_DEFS = {
+  contenido: { name:'Contenido', role:'Posts, reels, reseñas GBP', dot:'on' },
+  reportes:  { name:'Reportes',  role:'Métricas semanales',         dot:'on' },
+  ops:       { name:'Ops',       role:'Tareas y SOPs',              dot:'idle' },
+  kb:        { name:'AMALAY KB', role:'Base de conocimiento',       dot:'on' }
+};
+
+function buildSystemPrompt(agentId) {
+  const clients = getClients();
+  const tasks = getTasks();
+  const activeClients = clients.filter(c=>c.status==='active');
+  const pendingTasks = tasks.filter(t=>t.status!=='done');
+
+  const clientContext = activeClients.map(c =>
+    `CLIENTE: ${c.name}\n- Contacto: ${c.contact} | ${c.email} | ${c.phone}\n- Web: ${c.website}\n- Servicios: ${c.services.join(', ')}\n- Budget: ${c.budget}\n- Notas: ${c.notes}`
+  ).join('\n\n');
+
+  const taskContext = pendingTasks.map(t =>
+    `[${t.priority.toUpperCase()}] ${t.title} → ${t.client} | agente: ${t.agent} | estado: ${t.status}`
+  ).join('\n');
+
+  const base = `Eres un agente de Fullsite, una agencia de marketing digital en Monterrey, México.\n\nCONTEXTO DE CLIENTES ACTIVOS:\n${clientContext}\n\nTAREAS PENDIENTES:\n${taskContext}\n\nResponde siempre en español. Sé concreto y accionable.`;
+
+  const specific = {
+    contenido: `\n\nTU ROL — AGENTE DE CONTENIDO:\nGeneras posts para GBP, respuestas a reseñas de Google, ideas para reels, copies para anuncios. Keywords SEO para AMALAY: "brunch San Pedro Garza García", "AMALAY Coffee & Market", "Plaza Duendes", "terraza Monterrey", "desayuno San Pedro". Tono: cálido, auténtico, local regio, premium sin ser pretencioso. Cuando generes contenido, dalo listo para copiar/pegar.`,
+    reportes: `\n\nTU ROL — AGENTE DE REPORTES:\nAnalizas métricas, identificas problemas y das recomendaciones concretas. Issue crítico actual: Asset group "Pal Norte 2026" en Google Ads marcado "Limited by policy" por imágenes con alcohol (festival terminó Mar 27-29, 2026). Sé analítico y da pasos accionables.`,
+    ops: `\n\nTU ROL — AGENTE DE OPERACIONES:\nGestionas prioridades, creas SOPs, defines próximos pasos, haces checklists. Ayudas a organizar el trabajo del día/semana. Sé muy práctico y organizado.`,
+    kb: `\n\nTU ROL — BASE DE CONOCIMIENTO:\nRespondes cualquier pregunta sobre los clientes con información precisa. Si no tienes el dato, dilo claramente. Eres la fuente de verdad sobre la agencia y sus clientes.`
+  };
+
+  return base + (specific[agentId] || '');
+}
+
+// Chat history per agent (in memory + localStorage)
+let chatHistory = LS.get('chat_history') || { contenido:[], reportes:[], ops:[], kb:[] };
+let currentAgent = null;
+
+function saveChatHistory() { LS.set('chat_history', chatHistory); }
+
+function openAgent(id) {
+  currentAgent = id;
+  const ag = AGENT_DEFS[id];
+  document.getElementById('cp-name').textContent = ag.name;
+  document.getElementById('cp-role').textContent = ag.role;
+  document.getElementById('cp').classList.add('open');
+  document.querySelectorAll('.ag').forEach(el => el.classList.remove('sel'));
+  const agEl = document.getElementById('ag-'+id);
+  if(agEl) agEl.classList.add('sel');
+  document.querySelectorAll('.pill').forEach(el => el.classList.remove('sel'));
+  const pill = document.getElementById('pill-'+id);
+  if(pill) pill.classList.add('sel');
+  renderMsgs();
+  setTimeout(() => document.getElementById('cp-ta').focus(), 200);
+}
+
+function closeAgent() {
+  document.getElementById('cp').classList.remove('open');
+  document.querySelectorAll('.ag').forEach(el => el.classList.remove('sel'));
+  document.querySelectorAll('.pill').forEach(el => el.classList.remove('sel'));
+  currentAgent = null;
+}
+
+function renderMsgs() {
+  if(!currentAgent) return;
+  const msgs = chatHistory[currentAgent] || [];
+  const container = document.getElementById('cp-msgs');
+  if(!msgs.length) {
+    container.innerHTML = `<div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim);text-align:center;margin-top:24px;line-height:1.8">Agente listo.<br>Escríbele algo para empezar.</div>`;
+    return;
+  }
+  container.innerHTML = msgs.map(m => `
+    <div class="msg ${m.role==='user'?'user':''}">
+      <div class="msg-who">${m.role==='user'?'Tú':AGENT_DEFS[currentAgent].name}</div>
+      <div class="msg-body">${m.content.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')}</div>
+    </div>`).join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+function addTyping() {
+  const c = document.getElementById('cp-msgs');
+  const t = document.createElement('div');
+  t.id = 'typing'; t.className = 'msg';
+  t.innerHTML = `<div class="msg-who">${AGENT_DEFS[currentAgent].name}</div><div class="msg-body" style="color:var(--dim)">···</div>`;
+  c.appendChild(t);
+  c.scrollTop = c.scrollHeight;
+}
+
+async function sendMsg() {
+  if(!currentAgent) return;
+  const ta = document.getElementById('cp-ta');
+  const text = ta.value.trim();
+  if(!text) return;
+  ta.value = '';
+  const btn = document.getElementById('send-btn');
+  btn.disabled = true;
+
+  if(!chatHistory[currentAgent]) chatHistory[currentAgent] = [];
+  chatHistory[currentAgent].push({ role:'user', content:text });
+  renderMsgs();
+  addTyping();
+
+  const apiKey = LS.get('apikey');
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        system: buildSystemPrompt(currentAgent),
+        messages: chatHistory[currentAgent]
+      })
+    });
+    const data = await resp.json();
+    const reply = data.content?.map(b=>b.text||'').join('') || (data.error?.message || 'Error al obtener respuesta.');
+    chatHistory[currentAgent].push({ role:'assistant', content:reply });
+    saveChatHistory();
+  } catch(e) {
+    chatHistory[currentAgent].push({ role:'assistant', content:'Error de conexión. Verifica tu API key en ⚙ Ajustes.' });
+  }
+
+  document.getElementById('typing')?.remove();
+  renderMsgs();
+  btn.disabled = false;
+  ta.focus();
+}
+
+function handleKey(e) {
+  if(e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
+}
+
+// ============================================================
+// MULTI-AGENT MISSION SYSTEM
+// ============================================================
+let missionThread = [];
+
+const AGENT_COLORS = {
+  orchestrator: { label:'🧠 Orquestador', cls:'orchestrator' },
+  contenido:    { label:'✍️ Contenido',    cls:'contenido' },
+  reportes:     { label:'📊 Reportes',     cls:'reportes' },
+  ops:          { label:'⚙️ Ops',          cls:'ops' },
+  kb:           { label:'📚 AMALAY KB',    cls:'kb' },
+  system:       { label:'Sistema',         cls:'system' },
+  user:         { label:'Tú — Daniel',     cls:'user' }
+};
+
+function setMission(text) {
+  const ta = document.getElementById('mission-ta');
+  if(ta) { ta.value = text; ta.focus(); }
+}
+
+// ============================================================
+// PIXEL OFFICE — Canvas 2D Game Engine (Pixel Agents style)
+// ============================================================
+const PxGame = {
+  canvas: null, ctx: null, animId: null, frame: 0,
+  T: 32, COLS: 15, ROWS: 7,
+  sprites: {},
+  spritesLoaded: false,
+
+  // Map tiles: 0=wall, 1=shelf, 2=wood-floor, 3=carpet, 4=desk, 5=plant
+  MAP: [
+    [0,1,1,1,1,1,0,0,1,1,1,1,1,1,0],
+    [0,2,2,2,2,2,0,0,3,3,3,3,3,3,0],
+    [0,2,4,4,2,2,0,0,3,4,4,3,3,3,0],
+    [0,2,2,2,5,2,0,0,3,3,3,5,3,3,0],
+    [0,2,4,4,2,2,0,0,3,4,4,3,3,3,0],
+    [0,2,2,2,2,2,0,0,3,3,3,3,3,3,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  ],
+
+  // char index assigned to each agent
+  CHAR_IDX: { contenido:0, reportes:1, ops:2, kb:3, orchestrator:4 },
+  BASE_URL: 'https://raw.githubusercontent.com/pablodelucca/pixel-agents/main/webview-ui/public/assets/characters/',
+
+  agents: {
+    contenido:   {x:80, y:96,  tx:80,  ty:96,  state:'idle', bubble:'', hair:'#d97706', shirt:'#92400e', pants:'#451a03', deskTx:80,  deskTy:64},
+    reportes:    {x:80, y:160, tx:80,  ty:160, state:'idle', bubble:'', hair:'#2563eb', shirt:'#1e40af', pants:'#1e3a8a', deskTx:80,  deskTy:128},
+    ops:         {x:304,y:96,  tx:304, ty:96,  state:'idle', bubble:'', hair:'#16a34a', shirt:'#166534', pants:'#14532d', deskTx:304, deskTy:64},
+    kb:          {x:304,y:160, tx:304, ty:160, state:'idle', bubble:'', hair:'#7c3aed', shirt:'#6b21a8', pants:'#581c87', deskTx:304, deskTy:128},
+    orchestrator:{x:240,y:175, tx:240, ty:175, state:'idle', bubble:'', hair:'#818cf8', shirt:'#3730a3', pants:'#312e81', deskTx:240, deskTy:120, hidden:true},
+  },
+
+  loadSprites() {
+    const promises = [0,1,2,3,4,5].map(i => new Promise(resolve => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => { this.sprites[i] = img; resolve(); };
+      img.onerror = () => { this.sprites[i] = null; resolve(); }; // fallback to drawn
+      img.src = this.BASE_URL + 'char_' + i + '.png';
+    }));
+    return Promise.all(promises);
+  },
+
+  init() {
+    const el = document.getElementById('px-canvas');
+    if(!el) return;
+    if(this.animId) cancelAnimationFrame(this.animId);
+    this.canvas = el;
+    this.canvas.width  = this.COLS * this.T;
+    this.canvas.height = this.ROWS * this.T;
+    this.ctx = el.getContext('2d');
+    this.ctx.imageSmoothingEnabled = false;
+    // Load real sprites first, then start loop
+    this.loadSprites().then(() => {
+      this.spritesLoaded = true;
+      const loop = () => { this.frame++; this.update(); this.draw(); this.animId = requestAnimationFrame(loop); };
+      loop();
+    });
+  },
+
+  update() {
+    for(const ag of Object.values(this.agents)) {
+      const dx = ag.tx - ag.x, dy = ag.ty - ag.y;
+      const dist = Math.hypot(dx, dy);
+      if(dist > 1.5) { ag.x += dx/dist*1.8; ag.y += dy/dist*1.8; ag.moving=true; }
+      else { ag.x=ag.tx; ag.y=ag.ty; ag.moving=false; }
+    }
+  },
+
+  draw() {
+    const {ctx,T,COLS,ROWS,MAP} = this;
+    // Tilemap
+    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) this.drawTile(c*T,r*T,MAP[r][c]);
+    // Wall line at bottom of shelves
+    ctx.fillStyle='rgba(0,0,0,0.15)'; ctx.fillRect(0,T,COLS*T,2);
+    // Agents (sorted by y for depth)
+    const sorted = Object.entries(this.agents).filter(([,a])=>!a.hidden||(a.state!=='idle'||a.x!==240)).sort(([,a],[,b])=>a.y-b.y);
+    for(const [id,ag] of sorted) this.drawAgent(id,ag);
+  },
+
+  drawTile(x,y,type) {
+    const {ctx,T} = this;
+    if(type===0) { // WALL
+      // Dark wall
+      ctx.fillStyle='#1a1208'; ctx.fillRect(x,y,T,T);
+      ctx.fillStyle='#110d05'; ctx.fillRect(x,y+T-2,T,2);
+      // Baseboard
+      ctx.fillStyle='#2a1e0a'; ctx.fillRect(x,y+T-4,T,2);
+    } else if(type===1) { // SHELF
+      ctx.fillStyle='#1a1208'; ctx.fillRect(x,y,T,T);
+      // Shelf board wood
+      ctx.fillStyle='#3d2b0e'; ctx.fillRect(x+1,y+4,T-2,T-6);
+      ctx.fillStyle='#4a3515'; ctx.fillRect(x+1,y+4,T-2,3);
+      ctx.fillStyle='#2d1e08'; ctx.fillRect(x+1,y+T-4,T-2,2);
+      // Books
+      const cols=['#dc2626','#2563eb','#16a34a','#d97706','#7c3aed','#0891b2','#be185d','#0d9488'];
+      let bx=x+2; let bi=Math.floor(x/T+y);
+      while(bx<x+T-3) {
+        const bw=3+((bx*3+y*7)%3);
+        ctx.fillStyle=cols[(bi++)%cols.length];
+        ctx.fillRect(bx,y+6,bw,T-12);
+        // Book highlight
+        ctx.fillStyle='rgba(255,255,255,0.15)'; ctx.fillRect(bx,y+6,1,T-12);
+        // Book spine line
+        ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.fillRect(bx+bw,y+6,1,T-12);
+        bx+=bw+1;
+      }
+    } else if(type===2) { // WOOD FLOOR
+      ctx.fillStyle='#8B6340'; ctx.fillRect(x,y,T,T);
+      // Planks
+      ctx.fillStyle='#7A5530';
+      ctx.fillRect(x,y+10,T,1); ctx.fillRect(x,y+21,T,1);
+      const off=(Math.floor(x/T)%2)*16;
+      ctx.fillRect(x+off,y,1,10); ctx.fillRect(x+off,y+11,1,10); ctx.fillRect(x+off,y+22,1,T-22);
+      // Highlight
+      ctx.fillStyle='rgba(255,255,255,0.04)'; ctx.fillRect(x,y,T,1);
+      // Shadow between planks
+      ctx.fillStyle='rgba(0,0,0,0.08)'; ctx.fillRect(x,y+T-1,T,1);
+    } else if(type===3) { // CARPET
+      ctx.fillStyle='#2d1f4e'; ctx.fillRect(x,y,T,T);
+      ctx.fillStyle='#38266a'; ctx.fillRect(x+2,y+2,T-4,T-4);
+      // Carpet diamond pattern
+      ctx.fillStyle='#4a3580';
+      for(let i=0;i<3;i++) for(let j=0;j<3;j++) { ctx.fillRect(x+5+i*9,y+4+j*9,3,1); ctx.fillRect(x+6+i*9,y+3+j*9,1,3); }
+      ctx.fillStyle='rgba(255,255,255,0.03)'; ctx.fillRect(x,y,T,1);
+    } else if(type===4) { // DESK
+      // Floor under desk
+      const isWood=(x<this.COLS*this.T/2); 
+      ctx.fillStyle=isWood?'#8B6340':'#2d1f4e'; ctx.fillRect(x,y,T,T);
+      if(isWood){ctx.fillStyle='#7A5530';ctx.fillRect(x,y+10,T,1);ctx.fillRect(x,y+21,T,1);}
+      else{ctx.fillStyle='#38266a';ctx.fillRect(x+2,y+2,T-4,T-4);}
+      // Desk top
+      ctx.fillStyle='#7a5c38'; ctx.fillRect(x+1,y+2,T-2,6);
+      ctx.fillStyle='#6B4E2E'; ctx.fillRect(x+1,y+7,T-2,T-14);
+      ctx.fillStyle='#4a3520'; ctx.fillRect(x+1,y+T-7,T-2,5);
+      // Desk legs
+      ctx.fillStyle='#3a2810'; ctx.fillRect(x+2,y+T-5,4,4); ctx.fillRect(x+T-6,y+T-5,4,4);
+      // Monitor base & stand
+      ctx.fillStyle='#2d2d2d'; ctx.fillRect(x+12,y+13,6,4); ctx.fillRect(x+14,y+10,2,4);
+      // Monitor body
+      ctx.fillStyle='#1a1a2e'; ctx.fillRect(x+6,y+4,18,10);
+      ctx.fillStyle='#0a0a1a'; ctx.fillRect(x+7,y+5,16,8);
+      // Screen (glowing blue)
+      ctx.fillStyle='#0f3460'; ctx.fillRect(x+8,y+6,14,6);
+      ctx.fillStyle='#1a5276'; ctx.fillRect(x+9,y+7,10,3);
+      ctx.fillStyle='rgba(100,180,255,0.15)'; ctx.fillRect(x+8,y+6,14,1);
+      // Keyboard
+      ctx.fillStyle='#3d3d3d'; ctx.fillRect(x+7,y+14,12,3);
+      ctx.fillStyle='#4a4a4a'; ctx.fillRect(x+8,y+14,10,2);
+      // Mouse
+      ctx.fillStyle='#3d3d3d'; ctx.fillRect(x+21,y+14,4,3); ctx.fillRect(x+22,y+13,2,1);
+    } else if(type===5) { // PLANT
+      const isWood=(x<this.COLS*this.T/2);
+      ctx.fillStyle=isWood?'#8B6340':'#2d1f4e'; ctx.fillRect(x,y,T,T);
+      // Pot
+      ctx.fillStyle='#7c3520'; ctx.fillRect(x+10,y+18,10,9);
+      ctx.fillStyle='#6b2d1a'; ctx.fillRect(x+9,y+16,12,4);
+      ctx.fillStyle='#501f10'; ctx.fillRect(x+10,y+26,10,1);
+      // Soil
+      ctx.fillStyle='#2d1206'; ctx.fillRect(x+10,y+16,12,3);
+      // Stems
+      ctx.fillStyle='#15803d'; ctx.fillRect(x+14,y+6,3,14); ctx.fillRect(x+10,y+10,4,8); ctx.fillRect(x+18,y+11,4,7);
+      // Leaves
+      ctx.fillStyle='#166534'; ctx.fillRect(x+6,y+4,10,8); ctx.fillRect(x+16,y+6,8,7); ctx.fillRect(x+8,y+10,6,5);
+      ctx.fillStyle='#22c55e'; ctx.fillRect(x+8,y+5,6,4); ctx.fillRect(x+18,y+7,4,4); ctx.fillRect(x+7,y+11,4,3);
+      ctx.fillStyle='#4ade80'; ctx.fillRect(x+10,y+4,3,2); ctx.fillRect(x+19,y+6,2,2);
+    }
+  },
+
+  drawAgent(id, ag) {
+    const {ctx, frame:f} = this;
+    const px=Math.round(ag.x), py=Math.round(ag.y);
+    const {state,moving,hair,shirt,pants} = ag;
+    const typing = state==='typing';
+    const thinking = state==='thinking';
+    const bob = moving ? Math.sin(f*0.35)*2 : (typing ? Math.sin(f*0.5)*0.8 : Math.sin(f*0.04)*0.6);
+    const armSwing = typing ? Math.sin(f*0.5)*4 : (moving ? Math.sin(f*0.35)*3 : 0);
+    const legSwing = moving ? Math.sin(f*0.35)*3 : 0;
+    const blink = (f%140)<4;
+    const headTilt = thinking ? Math.sin(f*0.07)*3 : 0;
+
+    // Shadow
+    ctx.fillStyle='rgba(0,0,0,0.25)';
+    ctx.beginPath(); ctx.ellipse(px+8,py+22,7,2.5,0,0,Math.PI*2); ctx.fill();
+
+    const spriteIdx = this.CHAR_IDX[id] ?? 0;
+    const sprite = this.sprites[spriteIdx];
+
+    if(sprite && sprite.complete && sprite.naturalWidth > 0) {
+      // --- USE REAL PIXEL AGENTS SPRITE ---
+      const sw = sprite.naturalWidth, sh = sprite.naturalHeight;
+      // Draw with bob + slight rotation for animation
+      ctx.save();
+      ctx.translate(px+8, py+11+bob);
+      if(thinking) ctx.rotate(Math.sin(f*0.07)*0.05);
+      if(typing && f%8 < 4) ctx.translate(0, -0.5);
+      ctx.imageSmoothingEnabled = false;
+      // Scale sprite to fit ~28x28 display area
+      const scale = Math.min(28/sw, 28/sh);
+      ctx.drawImage(sprite, -sw*scale/2, -sh*scale/2, sw*scale, sh*scale);
+      ctx.restore();
+
+      // Typing hands effect — small white dots below sprite
+      if(typing) {
+        ctx.fillStyle='rgba(255,255,255,0.6)';
+        const handY = py+24+bob;
+        if(f%6<3) { ctx.fillRect(px+2,handY,3,2); ctx.fillRect(px+11,handY,3,2); }
+      }
+    } else {
+      // --- FALLBACK: drawn character ---
+      ctx.fillStyle='#1c1917';
+      ctx.fillRect(px+2, py+19+bob+legSwing, 5, 3);
+      ctx.fillRect(px+9, py+19+bob-legSwing, 5, 3);
+      ctx.fillStyle=pants;
+      ctx.fillRect(px+3, py+13+bob+legSwing, 4, 7);
+      ctx.fillRect(px+9, py+13+bob-legSwing, 4, 7);
+      ctx.fillStyle='rgba(0,0,0,0.4)'; ctx.fillRect(px+2,py+12+bob,12,2);
+      ctx.fillStyle=shirt;
+      ctx.fillRect(px+2, py+7+bob, 12, 7);
+      ctx.fillStyle=shirt;
+      ctx.fillRect(px-1, py+7+bob-armSwing, 4, 8);
+      ctx.fillStyle='#fde68a'; ctx.fillRect(px-1, py+14+bob-armSwing, 4, 2);
+      ctx.fillStyle=shirt;
+      ctx.fillRect(px+13, py+7+bob+armSwing, 4, 8);
+      ctx.fillStyle='#fde68a'; ctx.fillRect(px+13, py+14+bob+armSwing, 4, 2);
+      ctx.fillStyle='rgba(0,0,0,0.2)'; ctx.fillRect(px+6,py+6+bob,4,3);
+      ctx.fillStyle='#fde68a'; ctx.fillRect(px+6,py+5+bob,4,3);
+      ctx.save(); ctx.translate(px+8, py+3+bob);
+      ctx.rotate(headTilt*Math.PI/180);
+      ctx.fillStyle=hair; ctx.fillRect(-6,-4,12,7);
+      ctx.fillStyle='#fde68a'; ctx.fillRect(-5,-1,10,8);
+      ctx.fillStyle=hair;
+      ctx.fillRect(-6,-4,12,4);
+      ctx.fillRect(-6,-1,2,5);
+      ctx.fillRect(4,-1,2,3);
+      if(!blink) {
+        ctx.fillStyle='#1c1917'; ctx.fillRect(-3,1,2,3); ctx.fillRect(2,1,2,3);
+        ctx.fillStyle='#fff'; ctx.fillRect(-3,1,1,1); ctx.fillRect(2,1,1,1);
+      } else {
+        ctx.fillStyle='#1c1917'; ctx.fillRect(-3,2,2,1); ctx.fillRect(2,2,2,1);
+      }
+      if(typing&&f%6<3) { ctx.fillStyle='#7f1d1d'; ctx.fillRect(-1,5,3,2); }
+      else { ctx.fillStyle='#b45309'; ctx.fillRect(-2,5,5,1); }
+      ctx.restore();
+    }
+
+    // Speech bubble
+    if(ag.bubble) {
+      const bx=px+18, by=py-4;
+      const txt=ag.bubble.substring(0,18);
+      const bw=txt.length*5+8;
+      ctx.fillStyle='rgba(255,255,255,0.96)';
+      ctx.beginPath(); ctx.roundRect(bx,by-18,bw,20,4); ctx.fill();
+      ctx.strokeStyle='#d1d5db'; ctx.lineWidth=1; ctx.stroke();
+      // Tail
+      ctx.fillStyle='rgba(255,255,255,0.96)';
+      ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(bx-5,by+5); ctx.lineTo(bx+5,by); ctx.fill();
+      // Text
+      ctx.fillStyle='#111'; ctx.font='bold 7px monospace';
+      ctx.fillText(txt,bx+4,by-5);
+    }
+
+    // Name label (small, below character)
+    const labels={contenido:'Contenido',reportes:'Reportes',ops:'Ops',kb:'KB',orchestrator:'Orquestador'};
+    const colors={contenido:'#f59e0b',reportes:'#60a5fa',ops:'#4ade80',kb:'#c084fc',orchestrator:'#818cf8'};
+    if(labels[id]) {
+      ctx.fillStyle=colors[id]||'#aaa'; ctx.font='7px monospace';
+      ctx.textAlign='center'; ctx.fillText(labels[id],px+8,py+28); ctx.textAlign='left';
+    }
+  },
+
+  setAgentState(id, state, bubble) {
+    const ag = this.agents[id];
+    if(!ag) return;
+    ag.state=state; ag.bubble=bubble||'';
+    if(state==='typing'||state==='thinking'||state==='done') {
+      ag.tx=ag.deskTx; ag.ty=ag.deskTy;
+      if(id==='orchestrator') ag.hidden=false;
+    } else {
+      ag.tx=ag.deskTx; ag.ty=ag.deskTy+32;
+      if(id==='orchestrator') { ag.tx=240; ag.ty=175; setTimeout(()=>{ if(ag.state==='idle') ag.hidden=true; },1500); }
+    }
+    // Update status bar
+    const st=document.getElementById('pxst-'+id);
+    const stateMap={typing:'trabajando',thinking:'pensando',idle:'idle',done:'✅ listo',walking:'caminando'};
+    if(st) {
+      st.className='px-agent-st'+(state==='typing'||state==='done'?' active':state==='thinking'?' thinking':'');
+      const dot=state==='typing'||state==='done'?'dot-on':state==='thinking'?'dot-idle':'dot-off';
+      st.innerHTML=`<span class="dot ${dot}"></span>${id}: ${stateMap[state]||state}`;
+    }
+  },
+
+  allIdle() {
+    for(const [id,ag] of Object.entries(this.agents)) {
+      ag.state='idle'; ag.bubble='';
+      ag.tx=ag.deskTx; ag.ty=ag.deskTy+32;
+      if(id==='orchestrator'){ag.hidden=true;ag.tx=240;ag.ty=175;}
+      const st=document.getElementById('pxst-'+id);
+      if(st){st.className='px-agent-st';st.innerHTML=`<span class="dot dot-idle"></span>${id}: idle`;}
+    }
+    const txt=document.getElementById('px-status-text');
+    if(txt) txt.textContent='agentes en espera';
+  }
+};
+
+function handleMissionKey(e) {
+  if(e.key==='Enter' && !e.shiftKey) { e.preventDefault(); runMission(); }
+}
+
+function clearMission() {
+  missionThread = [];
+  const thread = document.getElementById('mission-thread');
+  if(thread) thread.innerHTML = '<div class="mission-empty">Los agentes colaborarán aquí para resolver tu misión.<br>Escribe algo arriba o elige una misión rápida.</div>';
+}
+
+function renderMissionThread() {
+  const thread = document.getElementById('mission-thread');
+  if(!thread) return;
+  if(!missionThread.length) {
+    thread.innerHTML = '<div class="mission-empty">Los agentes colaborarán aquí para resolver tu misión.<br>Escribe algo arriba o elige una misión rápida.</div>';
+    return;
+  }
+  thread.innerHTML = missionThread.map(m => {
+    const ag = AGENT_COLORS[m.agent] || AGENT_COLORS.system;
+    const dot = m.agent === 'user' ? 'dot-on' : m.agent === 'orchestrator' ? 'dot-idle' : 'dot-on';
+    return `<div class="mission-msg ${ag.cls}">
+      <div class="mission-sender"><span class="dot ${dot}"></span>${ag.label}</div>
+      <div class="mission-body">${String(m.content).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')}</div>
+    </div>`;
+  }).join('');
+  thread.scrollTop = thread.scrollHeight;
+}
+
+function addMissionTyping(agentId) {
+  const thread = document.getElementById('mission-thread');
+  if(!thread) return;
+  const ag = AGENT_COLORS[agentId] || AGENT_COLORS.system;
+  const typing = document.createElement('div');
+  typing.id = 'mission-typing';
+  typing.className = `mission-msg ${ag.cls}`;
+  typing.innerHTML = `<div class="mission-sender">${ag.label}</div><div class="mission-typing"><span>●</span><span>●</span><span>●</span></div>`;
+  thread.appendChild(typing);
+  thread.scrollTop = thread.scrollHeight;
+}
+
+function removeMissionTyping() {
+  document.getElementById('mission-typing')?.remove();
+}
+
+async function callClaude(systemPrompt, messages, maxTokens=800) {
+  const apiKey = LS.get('apikey');
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
+    },
+    body: JSON.stringify({
+      model:'claude-sonnet-4-20250514',
+      max_tokens: maxTokens,
+      system: systemPrompt,
+      messages
+    })
+  });
+  const data = await resp.json();
+  return data.content?.map(b=>b.text||'').join('') || (data.error?.message || 'Error.');
+}
+
+async function runMission() {
+  const ta = document.getElementById('mission-ta');
+  const btn = document.getElementById('mission-btn');
+  const thread = document.getElementById('mission-thread');
+  if(!ta || !btn) return;
+
+  const missionText = ta.value.trim();
+  if(!missionText) return;
+
+  const apiKey = LS.get('apikey');
+  if(!apiKey) { 
+    missionThread.push({ agent:'system', content:'⚙️ API key no configurada.\n\nVe a ⚙ Ajustes (arriba a la derecha) y pega tu clave de Anthropic (sk-ant-...).\n\nSi ya la tenías en otra versión del archivo, debes volver a ingresarla aquí.' });
+    renderMissionThread();
+    btn.disabled = false;
+    return; 
+  }
+
+  ta.value = '';
+  btn.disabled = true;
+
+  // Clear empty state and add user message
+  if(!missionThread.length && thread) thread.innerHTML = '';
+  missionThread.push({ agent:'user', content: missionText });
+  renderMissionThread();
+
+  // Context for orchestrator
+  const clients = getClients();
+  const tasks = getTasks();
+  const content = getContent();
+  const contextStr = `CLIENTES ACTIVOS: ${clients.filter(c=>c.status==='active').map(c=>c.name).join(', ')||'ninguno'}\nTAREAS PENDIENTES: ${tasks.filter(t=>t.status!=='done').length} tareas\nCONTENIDO ACTIVO: ${content.filter(c=>c.status==='published'||c.status==='active').length} piezas`;
+
+  // Update pixel office status
+  const pxTxt = document.getElementById('px-status-text');
+  if(pxTxt) pxTxt.textContent = '🧠 Orquestador planificando...';
+  PxGame.setAgentState('orchestrator','thinking','planificando...');
+
+  // Step 1: Orchestrator plans
+  addMissionTyping('orchestrator');
+  const orchestratorSystem = `Eres el orquestador del War Room de Fullsite, agencia de marketing digital en Monterrey.
+Agentes disponibles: contenido, reportes, ops, kb.
+- contenido: posts, copies, respuestas reseñas, ideas contenido
+- reportes: métricas, KPIs, análisis campañas
+- ops: SOPs, checklists, prioridades, organización
+- kb: información sobre clientes y negocio
+
+${contextStr}
+
+INSTRUCCIÓN CRÍTICA: Responde ÚNICAMENTE con el siguiente JSON. Cero texto antes o después. Cero backticks. Solo el JSON:
+{"plan":"descripción breve de qué harás","agents":[{"id":"contenido","task":"instrucción"},{"id":"ops","task":"instrucción"}]}
+
+Usa 1-3 agentes según necesites. Ejemplos de id válidos: contenido, reportes, ops, kb.`;
+
+  let orchestratorReply = '';
+  try {
+    orchestratorReply = await callClaude(orchestratorSystem, [{ role:'user', content: missionText }], 600);
+    
+    // Robust JSON extraction
+    let plan;
+    try {
+      // Try direct parse first
+      plan = JSON.parse(orchestratorReply.trim());
+    } catch {
+      // Try extracting JSON object from response
+      const jsonMatch = orchestratorReply.match(/\{[\s\S]*?\}/);
+      if(!jsonMatch) {
+        // Fallback: send to single best agent based on keywords
+        const lower = missionText.toLowerCase();
+        const agentId = lower.includes('reseña')||lower.includes('post')||lower.includes('contenido')||lower.includes('reel')||lower.includes('copy') ? 'contenido'
+          : lower.includes('métrica')||lower.includes('reporte')||lower.includes('ads')||lower.includes('campaña') ? 'reportes'
+          : lower.includes('sop')||lower.includes('tarea')||lower.includes('proceso')||lower.includes('ops') ? 'ops'
+          : lower.includes('cliente')||lower.includes('amalay')||lower.includes('info') ? 'kb'
+          : 'contenido';
+        plan = { plan: `Delegando al agente ${agentId}`, agents:[{id: agentId, task: missionText}] };
+      } else {
+        try { plan = JSON.parse(jsonMatch[0]); }
+        catch { plan = { plan: 'Procesando misión', agents:[{id:'ops', task: missionText}] }; }
+      }
+    }
+
+    removeMissionTyping();
+    missionThread.push({ agent:'orchestrator', content:`📋 Plan: ${plan.plan}\n\nAgentes: ${plan.agents.map(a=>a.id).join(' → ')}` });
+    renderMissionThread();
+    PxGame.setAgentState('orchestrator','idle','');
+
+    // Step 2: Run each agent in sequence
+    let previousOutputs = '';
+    for(const step of plan.agents) {
+      const agentId = step.id;
+      if(!AGENT_DEFS[agentId]) continue;
+
+      // Animate: agent walks to desk and starts typing
+      if(pxTxt) pxTxt.textContent = `${AGENT_DEFS[agentId].name} trabajando...`;
+      PxGame.setAgentState(agentId, 'walking', 'recibiendo tarea...');
+      await new Promise(r => setTimeout(r, 600));
+      PxGame.setAgentState(agentId, 'typing', '✍️ escribiendo...');
+
+      addMissionTyping(agentId);
+
+      const agentSystemPrompt = buildSystemPrompt(agentId);
+      const agentUserMsg = previousOutputs
+        ? `MISIÓN ORIGINAL: ${missionText}\n\nTU TAREA ESPECÍFICA: ${step.task}\n\nCONTEXTO DE AGENTES ANTERIORES:\n${previousOutputs}`
+        : `MISIÓN: ${missionText}\n\nTU TAREA: ${step.task}`;
+
+      try {
+        const agentReply = await callClaude(agentSystemPrompt, [{ role:'user', content: agentUserMsg }], 900);
+        removeMissionTyping();
+        missionThread.push({ agent: agentId, content: agentReply });
+        previousOutputs += `\n\n--- ${AGENT_DEFS[agentId].name} ---\n${agentReply}`;
+        renderMissionThread();
+
+        // Show done bubble, then go idle
+        PxGame.setAgentState(agentId, 'done', '✅ listo');
+        setTimeout(() => PxGame.setAgentState(agentId,'idle',''), 3000);
+      } catch(e) {
+        removeMissionTyping();
+        missionThread.push({ agent:'system', content:`Error en agente ${agentId}: ${e.message}` });
+        renderMissionThread();
+        PxGame.setAgentState(agentId,'idle','❌ error');
+      }
+    }
+
+    // Step 3: Final summary if multiple agents
+    if(plan.agents.length > 1) {
+      if(pxTxt) pxTxt.textContent = '🧠 Orquestador resumiendo...';
+      PxGame.setAgentState('orchestrator','thinking','resumiendo...');
+      addMissionTyping('orchestrator');
+      const summaryPrompt = `Eres el orquestador de Fullsite. Resume en 2-3 líneas los resultados de los agentes para Daniel. Sé concreto y accionable. En español.`;
+      const summary = await callClaude(summaryPrompt, [{ role:'user', content:`Misión: ${missionText}\n\nResultados:\n${previousOutputs}` }], 300);
+      removeMissionTyping();
+      missionThread.push({ agent:'orchestrator', content:`✅ Misión completada.\n\n${summary}` });
+      renderMissionThread();
+      PxGame.setAgentState('orchestrator','idle','✅ misión completada');
+    }
+
+    if(pxTxt) pxTxt.textContent = '✅ misión completada — agentes en espera';
+    setTimeout(pxAllIdle, 4000);
+
+  } catch(e) {
+    removeMissionTyping();
+    missionThread.push({ agent:'system', content:`Error al planear la misión: ${e.message}\n\nVerifica tu API key en ⚙ Ajustes.` });
+    renderMissionThread();
+    PxGame.allIdle();
+  }
+
+  btn.disabled = false;
+}
+
+// ============================================================
+// TAB RENDERING
+// ============================================================
+const TABS = ['warroom','clientes','tareas','contenido','reportes'];
+let currentTab = 'warroom';
+
+function showTab(id, btn) {
+  currentTab = id;
+  TABS.forEach(t => document.getElementById('tab-'+t).style.display = t===id?'block':'none');
+  document.querySelectorAll('.ni').forEach(b => b.classList.remove('on'));
+  if(btn) btn.classList.add('on');
+  renderTab(id);
+}
+
+function renderTab(id) {
+  const fns = { warroom:renderWarRoom, clientes:renderClientes, tareas:renderTareas, contenido:renderContenido, reportes:renderReportes };
+  if(fns[id]) fns[id]();
+}
+
+function renderWarRoom() {
+  const clients = getClients();
+  const tasks = getTasks();
+  const content = getContent();
+  const active = clients.filter(c=>c.status==='active').length;
+  const pending = tasks.filter(t=>t.status==='pending');
+  const inProgress = tasks.filter(t=>t.status==='progress');
+  const done = tasks.filter(t=>t.status==='done');
+  const published = content.filter(c=>c.status==='published'||c.status==='active').length;
+  const highPending = pending.filter(t=>t.priority==='high').length;
+
+  const kanbanCol = (label, items, accent) => `
+    <div class="kcol">
+      <div class="kcol-h"><span class="kcol-t" style="color:${accent}">${label}</span><span class="kcol-n">${items.length}</span></div>
+      ${items.length===0?'<div class="empty">vacío</div>':''}
+      ${items.map(t=>`
+        <div class="tk">
+          <div class="tk-t">${esc(t.title)}</div>
+          <div class="tk-m">
+            <span class="tk-cl">${esc(t.client.split(' ')[0])}</span>
+            <div class="tk-actions">
+              ${t.status!=='done'?`<button class="tk-advance" onclick="advanceTask(${t.id})">→</button>`:''}
+              <span class="bd ${priClass(t.priority)}">${priLabel(t.priority)}</span>
+              <button class="tk-del" onclick="deleteTask(${t.id})" title="Eliminar">×</button>
+            </div>
+          </div>
+        </div>`).join('')}
+    </div>`;
+
+  document.getElementById('tab-warroom').innerHTML = `
+    <p class="ps" id="wr-date">FULLSITE · ${dateStr()}</p>
+    <div class="kpis">
+      <div class="kpi"><div class="kpi-l">Clientes activos</div><div class="kpi-v">${active}</div><div class="kpi-d">${active===1?clients.filter(c=>c.status==='active')[0]?.name.split(' ')[0]+' activo':'clientes activos'}</div></div>
+      <div class="kpi"><div class="kpi-l">Tareas pendientes</div><div class="kpi-v">${pending.length}</div><div class="kpi-d ${highPending>0?'warn':''}">${highPending} de alta prioridad</div></div>
+      <div class="kpi"><div class="kpi-l">Contenido activo</div><div class="kpi-v">${published}</div><div class="kpi-d">publicados / activos</div></div>
+      <div class="kpi"><div class="kpi-l">En progreso</div><div class="kpi-v">${inProgress.length}</div><div class="kpi-d">tareas en curso</div></div>
+    </div>
+    <div class="sec"><span class="sec-t">Agentes — clic para chatear</span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--dim)">3/4 activos</span></div>
+    <div class="ags">
+      ${Object.entries(AGENT_DEFS).map(([id,ag])=>`
+        <div class="ag" id="ag-${id}" onclick="openAgent('${id}')">
+          <div class="ag-top"><span class="ag-name">${ag.name}</span><span class="ag-st"><span class="dot dot-${ag.dot}"></span>${ag.dot==='on'?'activo':'idle'}</span></div>
+          <div class="ag-role">${ag.role}</div>
+          <div class="ag-hint">→ clic para chatear</div>
+        </div>`).join('')}
+    </div>
+    <div class="sec">
+      <span class="sec-t">Operations Board</span>
+      <button class="sec-btn" onclick="openModal('task')">＋ Tarea</button>
+    </div>
+    <div class="kanban">
+      ${kanbanCol('Pendiente', pending, 'var(--amber)')}
+      ${kanbanCol('En progreso', inProgress, 'var(--blue)')}
+      ${kanbanCol('Completado', done, 'var(--green)')}
+    </div>
+    <div style="margin-top:22px">
+      <div class="sec"><span class="sec-t">Misión Multi-Agente</span><span class="mission-badge">BETA</span></div>
+      <div class="pixel-office-wrap">
+        <div class="pixel-office-header">
+          <div class="pixel-office-title">⬡ Fullsite HQ</div>
+          <div class="pixel-office-sub" id="px-status-text">agentes en espera</div>
+        </div>
+        <canvas id="px-canvas" style="width:100%;height:210px;image-rendering:pixelated;display:block;border-radius:8px;background:#1a1208;cursor:default;"></canvas>
+        <div class="px-status" id="px-status-bar">
+          <div class="px-agent-st" id="pxst-orchestrator"><span class="dot dot-idle"></span>Orquestador: en espera</div>
+          <div class="px-agent-st" id="pxst-contenido"><span class="dot dot-idle"></span>Contenido: idle</div>
+          <div class="px-agent-st" id="pxst-reportes"><span class="dot dot-idle"></span>Reportes: idle</div>
+          <div class="px-agent-st" id="pxst-ops"><span class="dot dot-idle"></span>Ops: idle</div>
+          <div class="px-agent-st" id="pxst-kb"><span class="dot dot-idle"></span>KB: idle</div>
+        </div>
+      </div>
+      <div class="mission-panel">
+        <div class="mission-header">
+          <div class="mission-title">⬡ War Room — Colaboración entre agentes</div>
+          <button onclick="clearMission()" style="background:none;border:none;color:var(--dim);font-size:10px;font-family:'JetBrains Mono',monospace;cursor:pointer" title="Limpiar">✕ limpiar</button>
+        </div>
+        <div class="mission-quick">
+          <button class="mission-quick-btn" onclick="setMission('Crea el plan de contenido para AMALAY esta semana: posts, reels e ideas')">📅 Plan semanal</button>
+          <button class="mission-quick-btn" onclick="setMission('Analiza el estado actual de AMALAY y dame los próximos 3 pasos más importantes')">🎯 Próximos pasos</button>
+          <button class="mission-quick-btn" onclick="setMission('Genera 3 respuestas a reseñas de Google listas para publicar en AMALAY')">⭐ Respuestas GBP</button>
+          <button class="mission-quick-btn" onclick="setMission('Crea un SOP para el proceso de respuesta a reseñas de AMALAY')">📋 Crear SOP</button>
+          <button class="mission-quick-btn" onclick="setMission('Genera ideas de contenido para esta semana en Instagram y GBP')">💡 Ideas contenido</button>
+        </div>
+        <div class="mission-input-row">
+          <textarea class="mission-ta" id="mission-ta" placeholder="Dale una misión al War Room... Los agentes colaborarán para resolverla." onkeydown="handleMissionKey(event)"></textarea>
+          <button class="mission-btn" id="mission-btn" onclick="runMission()">Ejecutar →</button>
+        </div>
+        <div class="mission-thread" id="mission-thread">
+          <div class="mission-empty">Los agentes colaborarán aquí para resolver tu misión.<br>Escribe algo arriba o elige una misión rápida.</div>
+        </div>
+      </div>
+    </div>\`;
+  // Initialize canvas game after DOM renders
+  requestAnimationFrame(() => PxGame.init());
+}
+
+function renderClientes() {
+  const clients = getClients();
+  document.getElementById('tab-clientes').innerHTML = `
+    <h1 class="ph">Clientes</h1>
+    <p class="ps">FULLSITE · ${clients.filter(c=>c.status==='active').length} activo(s) · ${clients.filter(c=>c.status!=='active').length} prospecto(s)</p>
+    <div class="sec"><span class="sec-t">Directorio</span><button class="sec-btn" onclick="openModal('client')">＋ Cliente</button></div>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Cliente</th><th>Contacto</th><th>Servicios</th><th>Estado</th><th>Budget</th><th></th></tr></thead>
+        <tbody>
+          ${clients.map(c=>`
+            <tr>
+              <td><div class="tn">${esc(c.name)}</div><div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim);margin-top:2px">${esc(c.website||'')}</div></td>
+              <td><div style="color:#a0a0a8">${esc(c.contact||'—')}</div><div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim);margin-top:2px">${esc(c.phone||'')}</div></td>
+              <td><div class="tags">${(c.services||[]).map(s=>`<span class="tag">${esc(s)}</span>`).join('')}</div></td>
+              <td><span class="st ${c.status==='active'?'st-act':'st-pro'}"><span class="dot ${c.status==='active'?'dot-on':'dot-off'}"></span>${c.status==='active'?'Activo':'Prospecto'}</span></td>
+              <td style="font-family:'JetBrains Mono',monospace;font-size:10px">${esc(c.budget||'—')}</td>
+              <td><button class="tk-del" onclick="deleteClient(${c.id})" title="Eliminar">×</button></td>
+            </tr>
+            ${c.notes?`<tr><td colspan="6" style="font-size:10px;color:var(--dim);padding-top:0;padding-bottom:12px">${esc(c.notes)}</td></tr>`:''}
+          `).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function renderTareas() {
+  const tasks = getTasks();
+  const pending   = tasks.filter(t=>t.status==='pending');
+  const inProgress= tasks.filter(t=>t.status==='progress');
+  const done      = tasks.filter(t=>t.status==='done');
+
+  const col = (label, items, accent) => `
+    <div class="kcol">
+      <div class="kcol-h"><span class="kcol-t" style="color:${accent}">${label}</span><span class="kcol-n">${items.length}</span></div>
+      ${items.length===0?'<div class="empty">sin tareas</div>':''}
+      ${items.map(t=>`
+        <div class="tk">
+          <div class="tk-t">${esc(t.title)}</div>
+          <div class="tk-m" style="margin-bottom:4px"><span class="tk-cl">${esc(t.client)}</span><span class="bd ${priClass(t.priority)}">${priLabel(t.priority)}</span></div>
+          <div class="tk-m"><span class="tk-cl">agente: ${esc(t.agent)}</span>
+            <div class="tk-actions">
+              ${t.status!=='done'?`<button class="tk-advance" onclick="advanceTask(${t.id})">→</button>`:''}
+              <button class="tk-del" onclick="deleteTask(${t.id})">×</button>
+            </div>
+          </div>
+        </div>`).join('')}
+    </div>`;
+
+  document.getElementById('tab-tareas').innerHTML = `
+    <h1 class="ph">Tareas</h1>
+    <p class="ps">FULLSITE · ${tasks.filter(t=>t.status!=='done').length} activas · ${done.length} completadas</p>
+    <div class="sec"><span class="sec-t">Kanban</span><button class="sec-btn" onclick="openModal('task')">＋ Tarea</button></div>
+    <div class="kanban">
+      ${col('Pendiente', pending, 'var(--amber)')}
+      ${col('En progreso', inProgress, 'var(--blue)')}
+      ${col('Completado', done, 'var(--green)')}
+    </div>`;
+}
+
+function renderContenido() {
+  const content = getContent();
+  const statusMap = { published:'pub', active:'act', draft:'dft', idea:'idea' };
+  const statusLabel = { published:'publicado', active:'activo', draft:'borrador', idea:'idea' };
+
+  document.getElementById('tab-contenido').innerHTML = `
+    <h1 class="ph">Contenido</h1>
+    <p class="ps">FULLSITE · ${content.filter(c=>c.status==='published'||c.status==='active').length} publicados · ${content.filter(c=>c.status==='draft'||c.status==='idea').length} en prep.</p>
+    <div class="sec"><span class="sec-t">Tracker</span><button class="sec-btn" onclick="openModal('content')">＋ Contenido</button></div>
+    <div class="cgrid">
+      ${content.map(c=>`
+        <div class="cc">
+          <div class="cc-plt">${esc(c.platform)}</div>
+          <div class="cc-t">${esc(c.title)}</div>
+          <div class="cc-f">
+            <span class="cc-d">${esc(c.date||'—')}</span>
+            <div style="display:flex;gap:6px;align-items:center">
+              <span class="bdp ${statusMap[c.status]||'dft'}">${statusLabel[c.status]||c.status}</span>
+              <button class="cc-del" onclick="deleteContent(${c.id})" title="Eliminar">×</button>
+            </div>
+          </div>
+        </div>`).join('')}
+      <button class="add-card" onclick="openModal('content')">＋ nuevo contenido</button>
+    </div>`;
+}
+
+function renderReportes() {
+  const clients = getClients();
+  const tasks = getTasks();
+  const highTasks = tasks.filter(t=>t.priority==='high'&&t.status!=='done');
+  const doneTasks = tasks.filter(t=>t.status==='done');
+
+  document.getElementById('tab-reportes').innerHTML = `
+    <h1 class="ph">Reporte Semanal</h1>
+    <p class="ps">AMALAY Coffee & Market · ${dateStr()}</p>
+    <div class="rpt">
+      <div class="rpt-s">
+        <div class="rpt-h">Google Ads — Performance Max</div>
+        <div class="rpt-i"><span class="rd"></span><span>Campaña "Amalay Coffee Market" activa · MX$150/día · monigp75@gmail.com</span></div>
+        <div class="rpt-i"><span class="rd w"></span><span>Asset group Pal Norte 2026: "Limited by policy" por imágenes con alcohol — acción pendiente</span></div>
+        <div class="rpt-i"><span class="rd i"></span><span>Recomendación: pausar asset group o remover imágenes con cerveza/alcohol</span></div>
+      </div>
+      <hr class="div">
+      <div class="rpt-s">
+        <div class="rpt-h">Google Business Profile</div>
+        <div class="rpt-i"><span class="rd"></span><span>cafeamalay.com vinculado · SEO: brunch San Pedro, desayuno Monterrey, Plaza Duendes</span></div>
+        <div class="rpt-i"><span class="rd"></span><span>+35 reseñas respondidas con keywords · staff destacado: Oscar, Omar</span></div>
+        <div class="rpt-i"><span class="rd w"></span><span>Reseñas nuevas pendientes de responder</span></div>
+      </div>
+      <hr class="div">
+      <div class="rpt-s">
+        <div class="rpt-h">Tareas de alta prioridad (${highTasks.length})</div>
+        ${highTasks.length===0?'<div class="rpt-i"><span class="rd"></span><span>Sin tareas críticas pendientes ✓</span></div>':
+          highTasks.map(t=>`<div class="rpt-i"><span class="rd w"></span><span>${esc(t.title)} — ${esc(t.client)}</span></div>`).join('')}
+      </div>
+      <hr class="div">
+      <div class="rpt-s">
+        <div class="rpt-h">Completado esta semana (${doneTasks.length})</div>
+        ${doneTasks.map(t=>`<div class="rpt-i"><span class="rd"></span><span>${esc(t.title)}</span></div>`).join('')}
+      </div>
+      <hr class="div">
+      <div class="rpt-s">
+        <div class="rpt-h">Próximos pasos</div>
+        <div class="rpt-i"><span class="rd w"></span><span>Resolver flag alcohol en Performance Max (alta prioridad)</span></div>
+        <div class="rpt-i"><span class="rd"></span><span>Publicar post terraza + cocktails en GBP</span></div>
+        <div class="rpt-i"><span class="rd i"></span><span>Planear Reel brunch para Instagram — hook: "así se ve un brunch en Monterrey"</span></div>
+      </div>
+    </div>
+    <div style="margin-top:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim);margin-bottom:10px;text-transform:uppercase;letter-spacing:.1em">Generar reporte con IA</div>
+      <p style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.6">Pídele al agente de Reportes que genere un reporte completo basado en el estado actual.</p>
+      <button class="sec-btn" onclick="openAgent('reportes');setTimeout(()=>{document.getElementById('cp-ta').value='Genera un reporte semanal completo de AMALAY basado en el estado actual de las tareas y campañas.';},300)">→ Abrir agente Reportes</button>
+    </div>`;
+}
+
+// ============================================================
+// CRUD
+// ============================================================
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function priClass(p) { return p==='high'?'bh':p==='medium'?'bm':'bl'; }
+function priLabel(p) { return p==='high'?'alta':p==='medium'?'media':'baja'; }
+
+async function advanceTask(id) {
+  const t = _tasks.find(t=>t.id===id);
+  if(!t) return;
+  const flow = { pending:'progress', progress:'done', done:'pending' };
+  const newStatus = flow[t.status] || 'pending';
+  await sbUpdate('tasks', id, { status: newStatus });
+  t.status = newStatus;
+  renderTab(currentTab);
+}
+
+async function deleteTask(id) {
+  if(!confirm('¿Eliminar esta tarea?')) return;
+  await sbDelete('tasks', id);
+  _tasks = _tasks.filter(t=>t.id!==id);
+  renderTab(currentTab);
+}
+
+async function deleteClient(id) {
+  if(!confirm('¿Eliminar este cliente?')) return;
+  await sbDelete('clients', id);
+  _clients = _clients.filter(c=>c.id!==id);
+  renderTab(currentTab);
+}
+
+async function deleteContent(id) {
+  await sbDelete('content', id);
+  _content = _content.filter(c=>c.id!==id);
+  renderTab(currentTab);
+}
+
+// ============================================================
+// MODALS
+// ============================================================
+function openModal(type) {
+  if(type==='task' || type==='content') {
+    const sel = type==='task' ? document.getElementById('t-client') : document.getElementById('c-client');
+    sel.innerHTML = getClients().map(c=>`<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('');
+  }
+  if(type==='settings') {
+    document.getElementById('s-key').value = LS.get('apikey') || '';
+  }
+  document.getElementById('overlay-'+type).classList.add('show');
+}
+
+function closeModal(type) {
+  document.getElementById('overlay-'+type).classList.remove('show');
+}
+
+function showSettings() { openModal('settings'); }
+
+async function saveClient() {
+  const data = {
+    name: document.getElementById('f-name').value.trim(),
+    contact: document.getElementById('f-contact').value.trim(),
+    email: document.getElementById('f-email').value.trim(),
+    phone: document.getElementById('f-phone').value.trim(),
+    website: document.getElementById('f-web').value.trim(),
+    services: document.getElementById('f-services').value.split(',').map(s=>s.trim()).filter(Boolean),
+    budget: document.getElementById('f-budget').value.trim(),
+    notes: document.getElementById('f-notes').value.trim(),
+    status: 'active'
+  };
+  const result = await sbInsert('clients', data);
+  if(Array.isArray(result)) _clients.push(...result);
+  closeModal('client');
+  ['f-name','f-contact','f-email','f-phone','f-web','f-services','f-budget','f-notes'].forEach(id=>document.getElementById(id).value='');
+  renderTab(currentTab);
+}
+
+async function saveTask() {
+  const data = {
+    title: document.getElementById('t-title').value.trim(),
+    client: document.getElementById('t-client').value,
+    agent: document.getElementById('t-agent').value,
+    priority: document.getElementById('t-priority').value,
+    due: document.getElementById('t-due').value.trim() || '—',
+    status: 'pending'
+  };
+  const result = await sbInsert('tasks', data);
+  if(Array.isArray(result)) _tasks.push(...result);
+  closeModal('task');
+  document.getElementById('t-title').value = '';
+  document.getElementById('t-due').value = '';
+  renderTab(currentTab);
+}
+
+async function saveContent() {
+  const st = document.getElementById('c-status').value;
+  const today = new Date().toLocaleDateString('es-MX',{day:'numeric',month:'short'});
+  const data = {
+    title: document.getElementById('c-title').value.trim(),
+    client: document.getElementById('c-client').value.split(' ')[0],
+    platform: document.getElementById('c-platform').value,
+    status: st,
+    date: (st==='published'||st==='active') ? today : null
+  };
+  const result = await sbInsert('content', data);
+  if(Array.isArray(result)) _content.push(...result);
+  closeModal('content');
+  document.getElementById('c-title').value = '';
+  renderTab(currentTab);
+}
+
+function updateKey() {
+  const key = document.getElementById('s-key').value.trim();
+  if(key) { LS.set('apikey', key); closeModal('settings'); }
+}
+
+function resetAll() {
+  if(!confirm('¿Seguro? Se borrarán las keys y el historial de chat (los datos en Supabase se mantienen).')) return;
+  ['apikey','chat_history'].forEach(k => LS.del(k));
+  location.reload();
+}
+
+// ============================================================
+// SETUP & INIT
+// ============================================================
+function saveKey() {
+  const key = document.getElementById('setup-key').value.trim();
+  if(!key.startsWith('sk-ant')) { alert('Esa no parece una clave válida de Anthropic. Debe empezar con sk-ant-'); return; }
+  LS.set('apikey', key);
+  boot();
+}
+
+function buildPills() {
+  document.getElementById('pills').innerHTML = Object.entries(AGENT_DEFS).map(([id,ag])=>
+    `<button class="pill" id="pill-${id}" onclick="openAgent('${id}')"><span class="dot dot-${ag.dot}"></span>${ag.name}</button>`
+  ).join('');
+}
+
+function dateStr() {
+  return new Date().toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+}
+
+function tick() {
+  const t = new Date();
+  document.getElementById('clk').textContent = t.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+}
+
+async function boot() {
+  document.getElementById('setup').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  buildPills();
+  // Show loading state
+  document.getElementById('tab-warroom').innerHTML = '<div style="font-family:\'JetBrains Mono\',monospace;font-size:10px;color:var(--dim);padding:40px;text-align:center">Cargando datos desde Supabase...</div>';
+  await initData();
+  renderTab('warroom');
+  tick();
+  setInterval(tick, 30000);
+}
+
+// Start
+window.addEventListener('DOMContentLoaded', () => {
+  if(LS.get('apikey')) { boot(); }
+  else { document.getElementById('setup').style.display = 'flex'; }
+});
+</script>
+</body>
+</html>

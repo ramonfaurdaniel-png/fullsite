@@ -644,16 +644,26 @@ const PxGame = {
   sprites: {},
   spritesLoaded: false,
 
-  // Map tiles: 0=wall, 1=shelf, 2=wood-floor, 3=carpet, 4=desk, 5=plant
+  // Map tiles: 0=floor-dark, 1=shelf, 2=wood-floor, 3=carpet, 4=desk, 5=plant
   MAP: [
     [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
     [2,2,2,2,2,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3],
     [2,4,4,2,2,2,4,4,2,2,3,4,4,3,3,3,4,4,3,3],
-    [2,2,2,5,2,2,2,2,2,2,3,3,3,5,3,3,3,3,3,3],
+    [2,2,2,5,2,2,2,2,5,2,3,3,3,5,3,3,3,3,5,3],
     [2,4,4,2,2,2,4,4,2,2,3,4,4,3,3,3,4,4,3,3],
     [2,2,2,2,2,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3],
-    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [2,2,2,2,2,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3],
   ],
+
+  CHAR_IDX: { contenido:0, reportes:2, ops:3, kb:1, orchestrator:4 },
+
+  agents: {
+    contenido:   {x:48,  y:128, tx:48,  ty:128, state:'idle', bubble:'', hair:'#d97706', shirt:'#92400e', pants:'#451a03', deskTx:48,  deskTy:64},
+    reportes:    {x:208, y:128, tx:208, ty:128, state:'idle', bubble:'', hair:'#2563eb', shirt:'#1e40af', pants:'#1e3a8a', deskTx:208, deskTy:64},
+    ops:         {x:368, y:128, tx:368, ty:128, state:'idle', bubble:'', hair:'#16a34a', shirt:'#166534', pants:'#14532d', deskTx:368, deskTy:64},
+    kb:          {x:528, y:128, tx:528, ty:128, state:'idle', bubble:'', hair:'#7c3aed', shirt:'#6b21a8', pants:'#581c87', deskTx:528, deskTy:64},
+    orchestrator:{x:320, y:180, tx:320, ty:180, state:'idle', bubble:'', hair:'#818cf8', shirt:'#3730a3', pants:'#312e81', deskTx:320, deskTy:128, hidden:true},
+  },
 
   CHAR_IDX: { contenido:0, reportes:2, ops:3, kb:1, orchestrator:5 },
 
@@ -714,12 +724,10 @@ const PxGame = {
 
   drawTile(x,y,type) {
     const {ctx,T} = this;
-    if(type===0) { // WALL
-      // Dark wall
-      ctx.fillStyle='#1a1208'; ctx.fillRect(x,y,T,T);
-      ctx.fillStyle='#110d05'; ctx.fillRect(x,y+T-2,T,2);
-      // Baseboard
-      ctx.fillStyle='#2a1e0a'; ctx.fillRect(x,y+T-4,T,2);
+    if(type===0) { // DARK FLOOR
+      ctx.fillStyle='#6B4E2E'; ctx.fillRect(x,y,T,T);
+      ctx.fillStyle='#5a3f22'; ctx.fillRect(x,y+10,T,1); ctx.fillRect(x,y+21,T,1);
+      ctx.fillStyle='rgba(0,0,0,0.15)'; ctx.fillRect(x,y,T,T);
     } else if(type===1) { // SHELF
       ctx.fillStyle='#1a1208'; ctx.fillRect(x,y,T,T);
       // Shelf board wood
@@ -927,8 +935,8 @@ const PxGame = {
       ag.tx=ag.deskTx; ag.ty=ag.deskTy;
       if(id==='orchestrator') ag.hidden=false;
     } else {
-      ag.tx=ag.deskTx; ag.ty=ag.deskTy+32;
-      if(id==='orchestrator') { ag.tx=320; ag.ty=175; setTimeout(()=>{ if(ag.state==='idle') ag.hidden=true; },1500); }
+      ag.tx=ag.deskTx; ag.ty=ag.deskTy+64;
+      if(id==='orchestrator') { ag.tx=320; ag.ty=180; setTimeout(()=>{ if(ag.state==='idle') ag.hidden=true; },1500); }
     }
     // Update status bar
     const st=document.getElementById('pxst-'+id);
@@ -943,8 +951,8 @@ const PxGame = {
   allIdle() {
     for(const [id,ag] of Object.entries(this.agents)) {
       ag.state='idle'; ag.bubble='';
-      ag.tx=ag.deskTx; ag.ty=ag.deskTy+32;
-      if(id==='orchestrator'){ag.hidden=true;ag.tx=240;ag.ty=175;}
+      ag.tx=ag.deskTx; ag.ty=ag.deskTy+64;
+      if(id==='orchestrator'){ag.hidden=true;ag.tx=320;ag.ty=180;}
       const st=document.getElementById('pxst-'+id);
       if(st){st.className='px-agent-st';st.innerHTML=`<span class="dot dot-idle"></span>${id}: idle`;}
     }

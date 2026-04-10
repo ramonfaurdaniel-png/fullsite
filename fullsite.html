@@ -640,39 +640,26 @@ function setMission(text) {
 // ============================================================
 const PxGame = {
   canvas: null, ctx: null, animId: null, frame: 0,
-  T: 32, COLS: 20, ROWS: 7,
+  T: 32, COLS: 16, ROWS: 5,
   sprites: {},
   spritesLoaded: false,
 
-  // Map tiles: 0=floor-dark, 1=shelf, 2=wood-floor, 3=carpet, 4=desk, 5=plant
   MAP: [
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [2,2,2,2,2,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3],
-    [2,4,4,2,2,2,4,4,2,2,3,4,4,3,3,3,4,4,3,3],
-    [2,2,2,5,2,2,2,2,5,2,3,3,3,5,3,3,3,3,5,3],
-    [2,4,4,2,2,2,4,4,2,2,3,4,4,3,3,3,4,4,3,3],
-    [2,2,2,2,2,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3],
-    [2,2,2,2,2,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3],
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    [2,2,4,4,2,5,3,3,3,4,4,3,5,3,3,3],
+    [2,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3],
+    [2,2,4,4,2,5,3,3,3,4,4,3,5,3,3,3],
+    [2,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3],
   ],
 
   CHAR_IDX: { contenido:0, reportes:2, ops:3, kb:1, orchestrator:4 },
 
   agents: {
-    contenido:   {x:48,  y:128, tx:48,  ty:128, state:'idle', bubble:'', hair:'#d97706', shirt:'#92400e', pants:'#451a03', deskTx:48,  deskTy:64},
-    reportes:    {x:208, y:128, tx:208, ty:128, state:'idle', bubble:'', hair:'#2563eb', shirt:'#1e40af', pants:'#1e3a8a', deskTx:208, deskTy:64},
-    ops:         {x:368, y:128, tx:368, ty:128, state:'idle', bubble:'', hair:'#16a34a', shirt:'#166534', pants:'#14532d', deskTx:368, deskTy:64},
-    kb:          {x:528, y:128, tx:528, ty:128, state:'idle', bubble:'', hair:'#7c3aed', shirt:'#6b21a8', pants:'#581c87', deskTx:528, deskTy:64},
-    orchestrator:{x:320, y:180, tx:320, ty:180, state:'idle', bubble:'', hair:'#818cf8', shirt:'#3730a3', pants:'#312e81', deskTx:320, deskTy:128, hidden:true},
-  },
-
-  CHAR_IDX: { contenido:0, reportes:2, ops:3, kb:1, orchestrator:5 },
-
-  agents: {
-    contenido:   {x:64,  y:96,  tx:64,  ty:96,  state:'idle', bubble:'', hair:'#d97706', shirt:'#92400e', pants:'#451a03', deskTx:64,  deskTy:64},
-    reportes:    {x:208, y:96,  tx:208, ty:96,  state:'idle', bubble:'', hair:'#2563eb', shirt:'#1e40af', pants:'#1e3a8a', deskTx:208, deskTy:64},
-    ops:         {x:352, y:96,  tx:352, ty:96,  state:'idle', bubble:'', hair:'#16a34a', shirt:'#166534', pants:'#14532d', deskTx:352, deskTy:64},
-    kb:          {x:528, y:96,  tx:528, ty:96,  state:'idle', bubble:'', hair:'#7c3aed', shirt:'#6b21a8', pants:'#581c87', deskTx:528, deskTy:64},
-    orchestrator:{x:320, y:175, tx:320, ty:175, state:'idle', bubble:'', hair:'#818cf8', shirt:'#3730a3', pants:'#312e81', deskTx:320, deskTy:120, hidden:true},
+    contenido:   {x:64,  y:96,  tx:64,  ty:96,  state:'idle', bubble:'', hair:'#d97706', shirt:'#92400e', pants:'#451a03', deskTx:64,  deskTy:32},
+    reportes:    {x:160, y:96,  tx:160, ty:96,  state:'idle', bubble:'', hair:'#2563eb', shirt:'#1e40af', pants:'#1e3a8a', deskTx:160, deskTy:32},
+    ops:         {x:288, y:96,  tx:288, ty:96,  state:'idle', bubble:'', hair:'#16a34a', shirt:'#166534', pants:'#14532d', deskTx:288, deskTy:32},
+    kb:          {x:384, y:96,  tx:384, ty:96,  state:'idle', bubble:'', hair:'#7c3aed', shirt:'#6b21a8', pants:'#581c87', deskTx:384, deskTy:32},
+    orchestrator:{x:224, y:128, tx:224, ty:128, state:'idle', bubble:'', hair:'#818cf8', shirt:'#3730a3', pants:'#312e81', deskTx:224, deskTy:64, hidden:true},
   },
 
   loadSprites() {

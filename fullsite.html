@@ -441,6 +441,230 @@ const LS = {
   del: k => localStorage.removeItem('fs_'+k)
 };
 
+// ─── SISTEMA DE MEMORIA SUPABASE (OpoClaw-inspired) ─────────────────────────
+// Salience: 1.0 start → +0.1 per use (max 5.0) → ×0.98 decay/day → delete <0.1
+// Sectors: 'semantic' (slow decay, rules/prefs) | 'episodic' (fast, what happened)
+// Cross-agent: agents can see relevant memories from other agents
+
+const MEM_TABLE = 'memories';
+
+async function sbMemFetch(url) {
+  const SB_H2 = { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
+  const r = await fetch(url, { headers: SB_H2 });
+  return r.ok ? r.json() : [];
+}
+
+async function saveMemory(agentId, content, sector='episodic', missionContext='', keywords='') {
+  try {
+    const SB_H2 = { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
+    await fetch(`${SB_URL}/rest/v1/${MEM_TABLE}`, {
+      method: 'POST', headers: SB_H2,
+      body: JSON.stringify({ agent_id: agentId, content, salience: 1.0, sector, mission_context: missionContext, keywords, client: 'AMALAY' })
+    });
+  } catch(e) { console.log('saveMemory error:', e); }
+}
+
+async function getRelevantMemories(agentId, taskText, crossAgent=true) {
+  try {
+    // Fetch top memories by salience — own agent + cross-agent
+    const agentFilter = crossAgent ? '' : `&agent_id=eq.${agentId}`;
+    const rows = await sbMemFetch(`${SB_URL}/rest/v1/${MEM_TABLE}?select=id,agent_id,content,salience,sector&order=salience.desc&limit=20${agentFilter}`);
+    if (!Array.isArray(rows) || !rows.length) return [];
+    
+    // Client-side keyword relevance scoring
+    const words = taskText.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+    const scored = rows.map(m => {
+      const text = m.content.toLowerCase();
+      const hits = words.filter(w => text.includes(w)).length;
+      const agentBonus = m.agent_id === agentId ? 0.5 : 0;
+      return { ...m, score: hits + agentBonus };
+    });
+    
+    // Return top 6, must have at least some relevance or be own-agent
+    return scored
+      .filter(m => m.score > 0 || m.agent_id === agentId)
+      .sort((a, b) => (b.score * b.salience) - (a.score * a.salience))
+      .slice(0, 6);
+  } catch(e) { return []; }
+}
+
+async function boostSalience(memoryId) {
+  try {
+    // First get current salience
+    const rows = await sbMemFetch(`${SB_URL}/rest/v1/${MEM_TABLE}?id=eq.${memoryId}&select=salience`);
+    if (!rows.length) return;
+    const newSalience = Math.min(5.0, (rows[0].salience || 1.0) + 0.1);
+    const SB_H2 = { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
+    await fetch(`${SB_URL}/rest/v1/${MEM_TABLE}?id=eq.${memoryId}`, {
+      method: 'PATCH', headers: SB_H2,
+      body: JSON.stringify({ salience: newSalience, accessed_at: new Date().toISOString() })
+    });
+  } catch(e) {}
+}
+
+async function decayAndCleanMemories() {
+  try {
+    // Fetch all memories, apply 2% daily decay, delete those below 0.1
+    const rows = await sbMemFetch(`${SB_URL}/rest/v1/${MEM_TABLE}?select=id,salience,accessed_at`);
+    if (!Array.isArray(rows)) return;
+    const SB_H2 = { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
+    const now = Date.now();
+    for (const m of rows) {
+      const ageMs = now - new Date(m.accessed_at).getTime();
+      const ageDays = ageMs / (1000 * 60 * 60 * 24);
+      if (ageDays < 1) continue;
+      const decayed = m.salience * Math.pow(0.98, Math.floor(ageDays));
+      if (decayed < 0.1) {
+        await fetch(`${SB_URL}/rest/v1/${MEM_TABLE}?id=eq.${m.id}`, { method: 'DELETE', headers: SB_H2 });
+      } else if (decayed < m.salience - 0.01) {
+        await fetch(`${SB_URL}/rest/v1/${MEM_TABLE}?id=eq.${m.id}`, {
+          method: 'PATCH', headers: SB_H2,
+          body: JSON.stringify({ salience: Math.round(decayed * 1000) / 1000 })
+        });
+      }
+    }
+    console.log('🧠 Memory decay applied to', rows.length, 'memories');
+  } catch(e) { console.log('Decay error:', e); }
+}
+
+async function clearMemoriesSB(agentId) {
+  try {
+    const SB_H2 = { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
+    const filter = agentId ? `?agent_id=eq.${agentId}` : '?salience=gte.0';
+    await fetch(`${SB_URL}/rest/v1/${MEM_TABLE}${filter}`, { method: 'DELETE', headers: SB_H2 });
+    renderWarRoom();
+  } catch(e) {}
+}
+
+async function getLearningsPromptSB(agentId, taskText='') {
+  const memories = await getRelevantMemories(agentId, taskText, true);
+  if (!memories.length) return '';
+  const crossAgent = memories.filter(m => m.agent_id !== agentId);
+  const ownAgent = memories.filter(m => m.agent_id === agentId);
+  
+  let prompt = '\n\nMEMORIA ACTIVA (aprendizajes de misiones anteriores — aplícalos siempre):';
+  if (ownAgent.length) {
+    prompt += '\n[Propios]\n' + ownAgent.slice(0, 4).map((m,i) => `${i+1}. ${m.content}`).join('\n');
+    // Boost salience of used memories
+    ownAgent.slice(0, 4).forEach(m => boostSalience(m.id));
+  }
+  if (crossAgent.length) {
+    const labels = { contenido:'Contenido', reportes:'Reportes', ops:'Ops', kb:'KB' };
+    prompt += '\n[De otros agentes]\n' + crossAgent.slice(0, 2).map(m => `• [${labels[m.agent_id]||m.agent_id}] ${m.content}`).join('\n');
+    crossAgent.slice(0, 2).forEach(m => boostSalience(m.id));
+  }
+  return prompt;
+}
+
+// Persistent task text for cross-agent memory injection
+let _currentMissionTask = '';
+
+async function extractAndSaveLearnings(missionText, allOutputs, agentIds) {
+  try {
+    const apiKey = LS.get('apikey');
+    if (!apiKey) return;
+    
+    const extractPrompt = `Eres el sistema de memoria del War Room de Fullsite. Analiza esta misión y extrae aprendizajes concretos para que los agentes mejoren en el futuro.
+
+MISIÓN: ${missionText.slice(0, 200)}
+
+OUTPUTS:
+${allOutputs.slice(0, 2000)}
+
+AGENTES PARTICIPANTES: ${agentIds.join(', ')}
+
+Para cada agente, extrae 1-2 aprendizajes. Clasifica cada uno:
+- sector "semantic": reglas permanentes, preferencias, cómo debe comportarse siempre
+- sector "episodic": qué pasó en esta misión específica, contexto temporal
+
+El aprendizaje debe ser una instrucción accionable en máx 150 caracteres.
+
+Responde SOLO con este JSON, sin backticks:
+{"learnings":[{"agent":"contenido","content":"instrucción específica","sector":"semantic","keywords":"kw1,kw2,kw3"}]}`;
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 600, messages: [{ role: 'user', content: extractPrompt }] })
+    });
+    const data = await res.json();
+    const raw = (data.content?.[0]?.text || '').replace(/```json|```/g, '').trim();
+    let parsed;
+    try { parsed = JSON.parse(raw); } catch { return; }
+    
+    if (parsed.learnings) {
+      for (const l of parsed.learnings) {
+        if (l.agent && l.content) {
+          await saveMemory(l.agent, l.content, l.sector || 'episodic', missionText.slice(0, 100), l.keywords || '');
+        }
+      }
+      const notif = document.createElement('div');
+      notif.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#0f172a;border:1px solid #4ade80;color:#4ade80;padding:10px 16px;border-radius:8px;font-size:12px;z-index:9999;font-family:JetBrains Mono,monospace;box-shadow:0 4px 12px rgba(0,0,0,0.4);';
+      notif.textContent = '🧠 ' + parsed.learnings.length + ' memoria(s) guardada(s) en Supabase';
+      document.body.appendChild(notif);
+      setTimeout(() => notif.remove(), 4000);
+      // Re-render memory panel
+      setTimeout(() => { if(typeof renderMemoryPanel === 'function') renderMemoryPanel(); }, 1000);
+    }
+  } catch(e) { console.log('Learning extraction error:', e); }
+}
+
+// Run decay on load (non-blocking)
+setTimeout(decayAndCleanMemories, 3000);
+
+async function renderMemoryPanel(){
+  const agents = ['contenido','reportes','ops','kb'];
+  const labels = {contenido:'✍️ Contenido',reportes:'📊 Reportes',ops:'⚙️ Ops',kb:'📚 KB'};
+  const colors = {contenido:'#f59e0b',reportes:'#60a5fa',ops:'#4ade80',kb:'#c084fc'};
+  const sectors = {semantic:'🔵',episodic:'⚪'};
+  const mc = document.getElementById('memory-cards');
+  if(!mc) return;
+  mc.innerHTML = '<div style="font-size:10px;color:var(--color-text-secondary);font-family:JetBrains Mono,monospace;padding:4px;">Cargando memoria...</div>';
+  let allMems = [];
+  try {
+    const sbH = { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY };
+    const r = await fetch(SB_URL + '/rest/v1/memories?select=*&order=salience.desc&limit=60', { headers: sbH });
+    allMems = r.ok ? await r.json() : [];
+  } catch(e) { allMems = []; }
+  mc.innerHTML = '';
+  agents.forEach(id => {
+    const mems = allMems.filter(m => m.agent_id === id);
+    const card = document.createElement('div');
+    card.style.cssText = 'flex:1;min-width:200px;background:var(--color-background-secondary);border:1px solid var(--color-border-tertiary);border-radius:8px;padding:10px;';
+    const color = colors[id];
+    const label = labels[id];
+    const hdr = document.createElement('div');
+    hdr.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;';
+    hdr.innerHTML = '<span style="font-size:10px;color:'+color+';font-family:JetBrains Mono,monospace;font-weight:600;">'+label+'</span>'
+      + '<span style="display:flex;gap:6px;align-items:center;">'
+      + '<span style="font-size:9px;color:var(--color-text-secondary);">'+mems.length+' mem.</span>'
+      + '<button onclick="clearMemoriesSB(\"'+id+'\")" style="font-size:9px;background:none;border:none;color:var(--color-text-secondary);cursor:pointer;padding:0;">× limpiar</button>'
+      + '</span>';
+    card.appendChild(hdr);
+    if(!mems.length) {
+      const empty = document.createElement('div');
+      empty.style.cssText = 'font-size:10px;color:var(--color-text-secondary);font-style:italic;line-height:1.5;';
+      empty.textContent = 'Sin memorias aún. Ejecuta misiones para aprender.';
+      card.appendChild(empty);
+    } else {
+      mems.slice(0,6).forEach(m => {
+        const item = document.createElement('div');
+        item.style.cssText = 'font-size:10px;color:var(--color-text-primary);margin-bottom:5px;padding:5px 6px;background:var(--color-background-primary);border-radius:4px;border-left:2px solid '+color+';';
+        const date = new Date(m.created_at).toLocaleDateString('es-MX',{day:'numeric',month:'short'});
+        const sector = m.sector === 'semantic' ? '🔵' : '⚪';
+        item.innerHTML = '<div style="display:flex;justify-content:space-between;margin-bottom:2px;">'
+          + '<span style="font-size:9px;color:var(--color-text-secondary);">'+sector+' '+m.sector+' · '+date+'</span>'
+          + '<span style="font-size:9px;color:'+color+';">⚡'+m.salience.toFixed(1)+'</span>'
+          + '</div>'
+          + '<div style="line-height:1.4;">'+m.content+'</div>';
+        card.appendChild(item);
+      });
+    }
+    mc.appendChild(card);
+  });
+}
+
+
 // ============================================================
 // SUPABASE
 // ============================================================
@@ -486,7 +710,7 @@ const AGENT_DEFS = {
   kb:        { name:'AMALAY KB', role:'Base de conocimiento',       dot:'on' }
 };
 
-function buildSystemPrompt(agentId) {
+async function buildSystemPrompt(agentId, taskText='') {
   const clients = getClients();
   const tasks = getTasks();
   const activeClients = clients.filter(c=>c.status==='active');
@@ -503,13 +727,14 @@ function buildSystemPrompt(agentId) {
   const base = `Eres un agente de Fullsite, una agencia de marketing digital en Monterrey, México.\n\nCONTEXTO DE CLIENTES ACTIVOS:\n${clientContext}\n\nTAREAS PENDIENTES:\n${taskContext}\n\nResponde siempre en español. Sé concreto y accionable.`;
 
   const specific = {
-    contenido: `\n\nTU ROL — AGENTE DE CONTENIDO:\nGeneras posts para GBP, respuestas a reseñas de Google, ideas para reels, copies para anuncios. Keywords SEO para AMALAY: "brunch San Pedro Garza García", "AMALAY Coffee & Market", "Plaza Duendes", "terraza Monterrey", "desayuno San Pedro". Tono: cálido, auténtico, local regio, premium sin ser pretencioso. Cuando generes contenido, dalo listo para copiar/pegar.`,
+    contenido: `\n\nTU ROL — AGENTE DE CONTENIDO:\nGeneras posts para GBP, respuestas a reseñas de Google, ideas para reels, copies para anuncios. Cuando generes contenido, dalo listo para copiar/pegar.\n\nNEGOCIO: AMALAY Coffee & Market | Plaza Duendes, San Pedro Garza García | cafeamalay.com\nHORARIOS: Lun-Mié 8am-8pm | Jue-Sáb 8am-11pm | Dom 8am-5pm\nATRIBUTOS: terraza/rooftop, pet-friendly, vegano/vegetariano, brunch, cocteles, estacionamiento gratuito, mujeres emprendedoras\nSTAFF: Oscar, Omar, Héctor | QUEJAS WhatsApp: 81 8254 3303\n\nREGLAS SEO OBLIGATORIAS PARA RESPUESTAS A RESEÑAS:\n1. SIEMPRE incluir \"AMALAY Coffee & Market\" al menos 1 vez.\n2. SIEMPRE incluir al menos 1 keyword: \"brunch San Pedro Garza García\", \"Plaza Duendes\", \"terraza\", \"desayuno Monterrey\", \"San Pedro Garza García\".\n3. Longitud ideal: 60-120 palabras.\n4. RESEÑA POSITIVA: saludo por nombre → agradecimiento específico a lo mencionado (plato, staff, ambiente) → keyword SEO integrada naturalmente → invitación a regresar con atributo único → firma: \"¡Te esperamos pronto! — Equipo AMALAY\"\n5. RESEÑA NEGATIVA: saludo empático → reconocimiento directo sin excusas → \"Contáctanos al WhatsApp 81 8254 3303\" → keyword SEO → compromiso de mejora.\n6. NUNCA respuestas genéricas. Referenciar siempre algo específico de la reseña.\n7. Si mencionan plato/bebida → inclúyelo. Si mencionan empleado → elógialo por nombre.\n8. Tono: cálido, auténtico, regio, premium sin ser pretencioso. Voz de Monica, la dueña.\n\nEJEMPLO POSITIVO: \"¡Hola [Nombre]! 🌟 Gracias por compartir tu experiencia. Nos alegra que hayas disfrutado [lo mencionado] en nuestra terraza de AMALAY Coffee & Market en Plaza Duendes. ¡Eres parte de lo que nos motiva a ser el lugar favorito de brunch en San Pedro Garza García! ¡Te esperamos pronto! — Equipo AMALAY ☕\"\n\nEJEMPLO NEGATIVO: \"Hola [Nombre], gracias por escribirnos. Lamentamos que tu visita a AMALAY Coffee & Market no haya sido la esperada. Por favor contáctanos al WhatsApp 81 8254 3303 para atenderte personalmente. Trabajamos cada día para mejorar en Plaza Duendes. — Equipo AMALAY\"`,
     reportes: `\n\nTU ROL — AGENTE DE REPORTES:\nAnalizas métricas, identificas problemas y das recomendaciones concretas. Issue crítico actual: Asset group "Pal Norte 2026" en Google Ads marcado "Limited by policy" por imágenes con alcohol (festival terminó Mar 27-29, 2026). Sé analítico y da pasos accionables.`,
     ops: `\n\nTU ROL — AGENTE DE OPERACIONES:\nGestionas prioridades, creas SOPs, defines próximos pasos, haces checklists. Ayudas a organizar el trabajo del día/semana. Sé muy práctico y organizado.`,
     kb: `\n\nTU ROL — BASE DE CONOCIMIENTO:\nRespondes cualquier pregunta sobre los clientes con información precisa. Si no tienes el dato, dilo claramente. Eres la fuente de verdad sobre la agencia y sus clientes.`
   };
 
-  return base + (specific[agentId] || '');
+  const learningsPrompt = await getLearningsPromptSB(agentId, taskText);
+  return base + (specific[agentId] || '') + learningsPrompt;
 }
 
 // Chat history per agent (in memory + localStorage)
@@ -593,7 +818,7 @@ async function sendMsg() {
       body: JSON.stringify({
         model:'claude-sonnet-4-20250514',
         max_tokens:1000,
-        system: buildSystemPrompt(currentAgent),
+        system: await buildSystemPrompt(currentAgent, userMsg),
         messages: chatHistory[currentAgent]
       })
     });
@@ -1111,7 +1336,7 @@ Usa 1-3 agentes según necesites. Ejemplos de id válidos: contenido, reportes, 
 
       addMissionTyping(agentId);
 
-      const agentSystemPrompt = buildSystemPrompt(agentId);
+      const agentSystemPrompt = await buildSystemPrompt(agentId, step.task);
       const agentUserMsg = previousOutputs
         ? `MISIÓN ORIGINAL: ${missionText}\n\nTU TAREA ESPECÍFICA: ${step.task}\n\nCONTEXTO DE AGENTES ANTERIORES:\n${previousOutputs}`
         : `MISIÓN: ${missionText}\n\nTU TAREA: ${step.task}`;
@@ -1150,6 +1375,10 @@ Usa 1-3 agentes según necesites. Ejemplos de id válidos: contenido, reportes, 
     if(pxTxt) pxTxt.textContent = '✅ misión completada — agentes en espera';
     setTimeout(pxAllIdle, 4000);
 
+    // Step 4: Extract learnings in background
+    const participatingAgents = plan.agents.map(a => a.id);
+    extractAndSaveLearnings(missionText, previousOutputs, participatingAgents);
+
   } catch(e) {
     removeMissionTyping();
     missionThread.push({ agent:'system', content:`Error al planear la misión: ${e.message}\n\nVerifica tu API key en ⚙ Ajustes.` });
@@ -1180,6 +1409,7 @@ function renderTab(id) {
 }
 
 function renderWarRoom() {
+  setTimeout(renderMemoryPanel, 200);
   const clients = getClients();
   const tasks = getTasks();
   const content = getContent();
@@ -1269,6 +1499,15 @@ function renderWarRoom() {
         <div class="mission-thread" id="mission-thread">
           <div class="mission-empty">Los agentes colaborarán aquí para resolver tu misión.<br>Escribe algo arriba o elige una misión rápida.</div>
         </div>
+          <!-- Memory Panel -->
+          <div id="memory-panel" style="margin-top:16px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+              <span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--muted);">🧠 MEMORIA DE AGENTES</span>
+              <button onclick="clearMemoriesSB(null)" style="font-size:10px;background:none;border:1px solid var(--border);color:var(--muted);padding:2px 8px;border-radius:4px;cursor:pointer;">limpiar todo</button>
+            </div>
+            <div id="memory-cards" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+          </div>
+          
       </div>
     </div>`;
   // Initialize canvas game after DOM renders

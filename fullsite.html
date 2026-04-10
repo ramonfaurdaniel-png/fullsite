@@ -656,7 +656,6 @@ const PxGame = {
   ],
 
   CHAR_IDX: { contenido:0, reportes:1, ops:2, kb:3, orchestrator:4 },
-  BASE_URL: 'https://raw.githubusercontent.com/pablodelucca/pixel-agents/main/webview-ui/public/assets/characters/',
 
   agents: {
     contenido:   {x:64,  y:96,  tx:64,  ty:96,  state:'idle', bubble:'', hair:'#d97706', shirt:'#92400e', pants:'#451a03', deskTx:64,  deskTy:64},
@@ -668,12 +667,10 @@ const PxGame = {
 
   loadSprites() {
     const promises = [0,1,2,3,4,5].map(i => new Promise(resolve => {
-      const src = (typeof SPRITE_B64 !== 'undefined' && SPRITE_B64[i]) ? SPRITE_B64[i] : null;
-      if(!src) { this.sprites[i] = null; resolve(); return; }
       const img = new Image();
       img.onload = () => { this.sprites[i] = img; resolve(); };
       img.onerror = () => { this.sprites[i] = null; resolve(); };
-      img.src = src;
+      img.src = `char_${i}.png`;
     }));
     return Promise.all(promises);
   },

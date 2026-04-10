@@ -611,6 +611,89 @@ Responde SOLO con este JSON, sin backticks:
 
 // Run decay on load (non-blocking)
 setTimeout(decayAndCleanMemories, 3000);
+// ─── FEEDBACK NEGATIVO ───────────────────────────────────────────────────────
+async function negativeFeedback(agentId, msgIdx) {
+  const btn = document.querySelector('#mission-msg-' + msgIdx + ' button');
+  if(btn) { btn.textContent = '✓'; btn.style.opacity = '1'; btn.disabled = true; }
+
+  try {
+    // Fetch recent memories for this agent and lower salience by -0.3
+    const sbH = { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY };
+    const r = await fetch(SB_URL + '/rest/v1/memories?agent_id=eq.' + agentId + '&order=accessed_at.desc&limit=3', { headers: sbH });
+    const mems = r.ok ? await r.json() : [];
+    for(const m of mems) {
+      const newSal = Math.max(0.1, (m.salience || 1.0) - 0.3);
+      await fetch(SB_URL + '/rest/v1/memories?id=eq.' + m.id, {
+        method:'PATCH', headers: { ...sbH, 'Content-Type':'application/json', 'Prefer':'return=representation' },
+        body: JSON.stringify({ salience: Math.round(newSal * 100) / 100 })
+      });
+    }
+    // Save a negative episodic memory
+    const msgContent = missionThread[msgIdx]?.content?.slice(0, 200) || '';
+    await saveMemory(agentId,
+      'NEGATIVO: Esta respuesta no fue satisfactoria. Evitar este enfoque: ' + msgContent.slice(0, 100),
+      'episodic', 'feedback negativo', 'negativo,mejorar'
+    );
+    setTimeout(renderMemoryPanel, 500);
+    showNotif('📉 Feedback guardado — salience reducida en memorias recientes', '#f59e0b');
+  } catch(e) { console.log('negativeFeedback error:', e); }
+}
+
+// ─── MEMORIA MANUAL ───────────────────────────────────────────────────────────
+async function saveManualMemory() {
+  const input = document.getElementById('manual-mem-input');
+  const agentSel = document.getElementById('manual-mem-agent');
+  if(!input || !agentSel) return;
+  const text = input.value.trim();
+  if(!text) return;
+  const agentId = agentSel.value;
+  await saveMemory(agentId, text, 'semantic', 'manual', 'manual,regla');
+  // Boost salience to 3.0 for manual rules (high priority)
+  const sbH = { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type':'application/json', 'Prefer':'return=representation' };
+  const r = await fetch(SB_URL + '/rest/v1/memories?agent_id=eq.' + agentId + '&order=created_at.desc&limit=1', { headers: sbH });
+  const mems = r.ok ? await r.json() : [];
+  if(mems.length) {
+    await fetch(SB_URL + '/rest/v1/memories?id=eq.' + mems[0].id, {
+      method:'PATCH', headers: sbH, body: JSON.stringify({ salience: 3.0 })
+    });
+  }
+  input.value = '';
+  setTimeout(renderMemoryPanel, 500);
+  showNotif('🧠 Regla guardada con salience 3.0', '#4ade80');
+}
+
+// ─── HELPER NOTIFICACIÓN ─────────────────────────────────────────────────────
+function showNotif(msg, color) {
+  const notif = document.createElement('div');
+  notif.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#0f172a;border:1px solid '+color+';color:'+color+';padding:10px 16px;border-radius:8px;font-size:12px;z-index:9999;font-family:JetBrains Mono,monospace;box-shadow:0 4px 12px rgba(0,0,0,.4);';
+  notif.textContent = msg;
+  document.body.appendChild(notif);
+  setTimeout(() => notif.remove(), 4000);
+}
+
+// ─── APRENDIZAJE DE CHATS INDIVIDUALES ───────────────────────────────────────
+async function extractChatLearning(agentId, userMsg, agentReply) {
+  try {
+    const apiKey = LS.get('apikey');
+    if(!apiKey) return;
+    const prompt = 'Extrae 1 aprendizaje concreto de este intercambio para que el agente ' + agentId + ' mejore en el futuro.\n\nUSUARIO: ' + userMsg.slice(0,150) + '\n\nAGENTE: ' + agentReply.slice(0,300) + '\n\nResponde SOLO con este JSON sin backticks:\n{"learning":"instrucción específica en máx 120 chars","sector":"semantic o episodic"}';
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:200, messages:[{role:'user',content:prompt}] })
+    });
+    const data = await res.json();
+    const raw = (data.content?.[0]?.text||'').replace(/```json|```/g,'').trim();
+    const parsed = JSON.parse(raw);
+    if(parsed.learning) {
+      await saveMemory(agentId, parsed.learning, parsed.sector||'episodic', 'chat individual', '');
+      showNotif('🧠 Aprendizaje guardado de chat', '#60a5fa');
+      setTimeout(renderMemoryPanel, 500);
+    }
+  } catch(e) {}
+}
+
+
 
 async function renderMemoryPanel(){
   const agents = ['contenido','reportes','ops','kb'];
@@ -826,6 +909,10 @@ async function sendMsg() {
     const reply = data.content?.map(b=>b.text||'').join('') || (data.error?.message || 'Error al obtener respuesta.');
     chatHistory[currentAgent].push({ role:'assistant', content:reply });
     saveChatHistory();
+    // Learn from this chat exchange (every 3rd message to avoid noise)
+    if(chatHistory[currentAgent].length % 3 === 0) {
+      extractChatLearning(currentAgent, text, reply);
+    }
   } catch(e) {
     chatHistory[currentAgent].push({ role:'assistant', content:'Error de conexión. Verifica tu API key en ⚙ Ajustes.' });
   }
@@ -1190,11 +1277,13 @@ function renderMissionThread() {
     thread.innerHTML = '<div class="mission-empty">Los agentes colaborarán aquí para resolver tu misión.<br>Escribe algo arriba o elige una misión rápida.</div>';
     return;
   }
-  thread.innerHTML = missionThread.map(m => {
+  thread.innerHTML = missionThread.map((m, idx) => {
     const ag = AGENT_COLORS[m.agent] || AGENT_COLORS.system;
     const dot = m.agent === 'user' ? 'dot-on' : m.agent === 'orchestrator' ? 'dot-idle' : 'dot-on';
-    return `<div class="mission-msg ${ag.cls}">
-      <div class="mission-sender"><span class="dot ${dot}"></span>${ag.label}</div>
+    const isAgent = !['user','system','orchestrator'].includes(m.agent);
+    const feedbackBtn = isAgent ? `<button onclick="negativeFeedback('${m.agent}', ${idx})" title="Marcar como malo" style="background:none;border:none;cursor:pointer;font-size:11px;opacity:0.4;padding:2px 4px;transition:opacity .2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4">👎</button>` : '';
+    return `<div class="mission-msg ${ag.cls}" id="mission-msg-${idx}">
+      <div class="mission-sender" style="display:flex;align-items:center;justify-content:space-between;"><span style="display:flex;align-items:center;gap:5px;"><span class="dot ${dot}"></span>${ag.label}</span>${feedbackBtn}</div>
       <div class="mission-body">${String(m.content).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')}</div>
     </div>`;
   }).join('');
@@ -1504,6 +1593,17 @@ function renderWarRoom() {
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
               <span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--muted);">🧠 MEMORIA DE AGENTES</span>
               <button onclick="clearMemoriesSB(null)" style="font-size:10px;background:none;border:1px solid var(--border);color:var(--muted);padding:2px 8px;border-radius:4px;cursor:pointer;">limpiar todo</button>
+            </div>
+            <!-- Memoria manual -->
+            <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;">
+              <select id="manual-mem-agent" style="font-size:11px;background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 8px;font-family:'JetBrains Mono',monospace;">
+                <option value="contenido">✍️ Contenido</option>
+                <option value="reportes">📊 Reportes</option>
+                <option value="ops">⚙️ Ops</option>
+                <option value="kb">📚 KB</option>
+              </select>
+              <input id="manual-mem-input" type="text" placeholder="Regla permanente: ej. siempre incluir emojis en reseñas positivas..." style="flex:1;font-size:11px;background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 10px;font-family:'JetBrains Mono',monospace;" onkeydown="if(event.key==='Enter')saveManualMemory()">
+              <button onclick="saveManualMemory()" style="font-size:11px;background:var(--green);color:#000;border:none;border-radius:6px;padding:4px 12px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-weight:600;">+ Guardar</button>
             </div>
             <div id="memory-cards" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
           </div>

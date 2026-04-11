@@ -247,7 +247,7 @@ hr.div{border:none;border-top:1px solid var(--border);margin:16px 0;}
 .pixel-office-sub{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim);}
 .px-room-label{position:absolute;font-family:'JetBrains Mono',monospace;font-size:8px;color:rgba(255,255,255,0.3);pointer-events:none;letter-spacing:.05em;}
 #px-canvas{width:100% !important;height:auto !important;display:block;border-radius:8px;image-rendering:pixelated;image-rendering:crisp-edges;}
-.pixel-office{position:relative;width:100%;height:960px;background:#0e0e1a;border-radius:8px;overflow:hidden;image-rendering:pixelated;}
+.pixel-office{position:relative;width:100%;height:960px;background:#0e0e1a;border-radius:0 0 8px 8px;border-radius:8px;overflow:hidden;image-rendering:pixelated;}
 .px-floor{position:absolute;inset:0;background:repeating-linear-gradient(90deg,#1e1408 0px,#1e1408 16px,#221608 16px,#221608 32px),repeating-linear-gradient(180deg,#1e1408 0px,#1e1408 16px,#221608 16px,#221608 32px);background-blend-mode:multiply;}
 .px-wall{position:absolute;top:0;left:0;right:0;height:40px;background:#0e0e1a;border-bottom:2px solid #1a1a2e;}
 .px-wall::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:#2a2a4a;}
@@ -1083,24 +1083,56 @@ const PxGame = {
 
   draw() {
     const {ctx,T,COLS,ROWS,MAP} = this;
-    // Tilemap
-    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) this.drawTile(c*T,r*T,MAP[r][c]);
-    // Wall line at bottom of shelves
-    ctx.fillStyle='rgba(0,0,0,0.15)'; ctx.fillRect(0,T,COLS*T,2);
-    // Room divider shadow effect
-    ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(this.T*9,0,2,this.ROWS*this.T);
-    ctx.fillStyle='rgba(0,0,0,0.2)'; ctx.fillRect(this.T*9+2,0,2,this.ROWS*this.T);
 
-    // Room labels
-    ctx.font='bold 3px "JetBrains Mono", monospace'; // 3px * zoom4 = 12px screen
-    ctx.fillStyle='rgba(255,255,255,0.2)';
-    ctx.fillText('OPEN OFFICE', 2, this.ROWS*this.T - 2);
-    ctx.fillText('MEETING ROOM', this.T*11, this.ROWS*this.T - 2);
+    // PASS 1: All floor tiles first
+    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) {
+      const type=MAP[r][c], x=c*T, y=r*T;
+      if(type===6){ctx.fillStyle='#16162a';ctx.fillRect(x,y,T,T);ctx.fillStyle='#20203a';ctx.fillRect(x+1,y,T-2,T);continue;}
+      if(type===1||type===10||type===11){ctx.fillStyle='#12120e';ctx.fillRect(x,y,T,T);continue;}
+      if(type===3||type===7||type===8||type===9||type===12||type===13) this.drawFloor('floor5',x,y);
+      else this.drawFloor('floor0',x,y);
+    }
 
-    // Agents (sorted by y for depth)
-    const sorted = Object.entries(this.agents).filter(([,a])=>!a.hidden||(a.state!=='idle'||a.x!==240)).sort(([,a],[,b])=>a.y-b.y);
+    // PASS 2: Wall/bookshelf tiles (stay on top always)
+    for(let r=0;r<2;r++) for(let c=0;c<COLS;c++) this.drawTile(c*T,r*T,MAP[r][c]);
+
+    // PASS 3: Non-table furniture (desks, chairs, plants, sofas)
+    for(let r=2;r<ROWS;r++) for(let c=0;c<COLS;c++) {
+      const type=MAP[r][c];
+      if(type!==13) this.drawTile(c*T,r*T,type);
+    }
+
+    // PASS 4: Agents sorted by Y (painter's algorithm)
+    const sorted = Object.entries(this.agents)
+      .filter(([,a])=>!a.hidden||(a.state!=='idle'))
+      .sort(([,a],[,b])=>a.y-b.y);
     for(const [id,ag] of sorted) this.drawAgent(id,ag);
+
+    // PASS 5: Conference table ON TOP of agents (front edge covers legs)
+    for(let r=2;r<ROWS;r++) for(let c=0;c<COLS;c++) {
+      if(MAP[r][c]===13) this.drawTile(c*T,r*T,13);
+    }
+
+    // Divider
+    ctx.fillStyle='rgba(0,0,0,0.7)';ctx.fillRect(T*8,0,3,ROWS*T);
+    ctx.fillStyle='rgba(10,10,40,0.4)';ctx.fillRect(T*8+3,0,3,ROWS*T);
+
+    // Ambient floor glow under agents
+    for(const [,ag] of sorted) {
+      const gx=ag.x+T/2, gy=ag.y+T;
+      const grad=ctx.createRadialGradient(gx,gy,0,gx,gy,T*1.5);
+      grad.addColorStop(0,'rgba(255,200,100,0.04)');
+      grad.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=grad; ctx.fillRect(ag.x-T,ag.y-T,T*3,T*3);
+    }
+
+    // Labels
+    ctx.font='bold 3px "JetBrains Mono",monospace';
+    ctx.fillStyle='rgba(255,255,255,0.2)';
+    ctx.fillText('OPEN OFFICE',2,ROWS*T-2);
+    ctx.fillText('MEETING ROOM',T*10,ROWS*T-2);
   },
+
 
   drawSprite(key, x, y, w, h) {
     const img = this.sprites['f_'+key];
@@ -1115,28 +1147,35 @@ const PxGame = {
   // Tile a 16x16 floor PNG across a 32x32 tile (2x2 tiling)
   drawFloor(floorKey, x, y) {
     const {ctx, T} = this;
-    // Pixel Agents uses tileColors to tint grayscale floor PNGs
-    // We replicate by drawing base color + PNG texture overlay
+    const isWood = floorKey === 'floor0' || floorKey === 'floor1';
+    // Alternate slightly for natural wood plank look
+    const alt = (Math.floor(x/T) + Math.floor(y/T)) % 2 === 0;
     const colors = {
-      floor0: '#b08040', floor1: '#a87838', floor2: '#986830',
-      floor3: '#4a6e8a', floor4: '#486080', floor5: '#506878',
-      floor6: '#404060', floor7: '#303050', floor8: '#585870',
+      floor0: alt ? '#b08040' : '#a87838',
+      floor1: alt ? '#a87838' : '#986830',
+      floor5: alt ? '#4a6e8a' : '#426280',
     };
-    const baseColor = colors[floorKey] || '#8B6340';
-    ctx.fillStyle = baseColor;
+    ctx.fillStyle = colors[floorKey] || (isWood ? '#a07040' : '#4a6080');
     ctx.fillRect(x, y, T, T);
-    // Draw PNG texture on top for wood grain effect
+    // PNG texture overlay
     const img = this.sprites['f_'+floorKey];
     if(img && img.complete && img.naturalWidth > 0) {
       ctx.imageSmoothingEnabled = false;
-      ctx.globalAlpha = 0.35;
+      ctx.globalAlpha = 0.3;
       ctx.drawImage(img, x, y, T, T);
       ctx.globalAlpha = 1;
     }
-    // Subtle grid line for tile separation
-    ctx.strokeStyle = 'rgba(0,0,0,0.08)';
-    ctx.lineWidth = 0.5;
-    ctx.strokeRect(x+0.25, y+0.25, T-0.5, T-0.5);
+    if(isWood) {
+      // Wood plank lines
+      ctx.fillStyle = 'rgba(0,0,0,0.06)';
+      ctx.fillRect(x, y+T-1, T, 1);
+      if(Math.floor(x/T)%3===0) ctx.fillRect(x, y, 1, T);
+    } else {
+      // Carpet tile grid
+      ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+      ctx.lineWidth = 0.5;
+      ctx.strokeRect(x+0.5, y+0.5, T-1, T-1);
+    }
   },
 
   // Draw a furniture sprite at pixel-perfect 2x scale
@@ -1288,25 +1327,23 @@ const PxGame = {
       }
       return;
     }
-    if(type===13) { // CONFERENCE TABLE - beautiful dark wood
-      this.drawFloor('floor5', x, y);
-      ctx.imageSmoothingEnabled=false;
-      // Rich dark wood conference table
-      ctx.fillStyle='#5C3D1E'; ctx.fillRect(x,y+2,this.T,this.T-4);
-      ctx.fillStyle='#7B5230'; ctx.fillRect(x+1,y+3,this.T-2,this.T-8);
-      // Wood grain lines
-      ctx.fillStyle='rgba(255,255,255,0.06)';
-      ctx.fillRect(x+2,y+4,1,this.T-10);
-      ctx.fillRect(x+6,y+4,1,this.T-10);
-      ctx.fillRect(x+10,y+4,1,this.T-10);
-      ctx.fillRect(x+14,y+4,1,this.T-10);
-      // Top highlight
-      ctx.fillStyle='rgba(255,255,255,0.12)'; ctx.fillRect(x+1,y+3,this.T-2,1);
-      // Bottom shadow
-      ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.fillRect(x+1,y+this.T-5,this.T-2,2);
-      // Laptop/notepad on table (subtle)
-      if((Math.floor(x/this.T)+Math.floor(y/this.T))%3===0) {
-        ctx.fillStyle='rgba(200,200,220,0.2)'; ctx.fillRect(x+3,y+4,this.T/2-2,this.T-10);
+    if(type===13) { // CONFERENCE TABLE - only renders bottom half (so heads show above)
+      // Only draw the front edge/bottom portion - head visible above
+      const T=this.T;
+      // Dark wood surface - only bottom 60% so heads aren't covered
+      ctx.fillStyle='#4a3018'; ctx.fillRect(x,y+T*0.4,T,T*0.6);
+      ctx.fillStyle='#6B4828'; ctx.fillRect(x+1,y+T*0.4+1,T-2,T*0.6-4);
+      // Wood grain
+      ctx.fillStyle='rgba(255,255,255,0.05)';
+      for(let i=2;i<T-2;i+=4) ctx.fillRect(x+i,y+T*0.4+2,1,T*0.6-6);
+      // Top edge highlight
+      ctx.fillStyle='rgba(255,255,255,0.15)'; ctx.fillRect(x,y+T*0.4,T,1);
+      // Front edge shadow
+      ctx.fillStyle='rgba(0,0,0,0.4)'; ctx.fillRect(x,y+T-3,T,3);
+      // Subtle item on table
+      if((Math.floor(x/T)+Math.floor(y/T))%4===0) {
+        ctx.fillStyle='rgba(180,200,255,0.15)';
+        ctx.fillRect(x+3,y+T*0.5,T/3,T*0.3);
       }
       return;
     }
@@ -1474,11 +1511,11 @@ const PxGame = {
 
   goToMeeting(agentIds) {
     const seats = [
-      {x:10*this.T, y:2*this.T},
-      {x:14*this.T, y:2*this.T},
-      {x:10*this.T, y:5*this.T},
-      {x:14*this.T, y:5*this.T},
-      {x:12*this.T, y:3*this.T},
+      {x:10*this.T, y:2*this.T},  // top-left sofa
+      {x:13*this.T, y:2*this.T},  // top-right sofa
+      {x:10*this.T, y:6*this.T},  // bottom-left sofa
+      {x:13*this.T, y:6*this.T},  // bottom-right sofa
+      {x:11*this.T, y:4*this.T},  // center (head of table)
     ];
     let i=0;
     for(const id of agentIds) {

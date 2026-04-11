@@ -1551,6 +1551,20 @@ const PxGame = {
   setAgentState(id, state, bubble) {
     const ag = this.agents[id];
     if(!ag) return;
+    // Update status bar
+    const el = document.getElementById('ast-'+id);
+    if(el) {
+      const colors = {contenido:'#f59e0b',reportes:'#60a5fa',ops:'#4ade80',kb:'#c084fc',orchestrator:'#818cf8'};
+      const names = {contenido:'Contenido',reportes:'Reportes',ops:'Ops',kb:'KB',orchestrator:'Orquestador'};
+      const c = colors[id]||'#aaa';
+      if(state==='idle') {
+        el.style.color=c+'44'; el.textContent='● '+names[id];
+      } else {
+        el.style.color=c;
+        const icons={thinking:'🧠',typing:'✍️',working:'⚙️'};
+        el.textContent=(icons[state]||'●')+' '+(bubble||names[id]);
+      }
+    }
     ag.state=state; ag.bubble=bubble||'';
     if(state==='typing'||state==='thinking'||state==='done') {
       ag.tx=ag.deskTx; ag.ty=ag.deskTy;
@@ -1887,7 +1901,19 @@ function renderWarRoom() {
           <div class="pixel-office-title">⬡ Fullsite HQ</div>
           <div class="pixel-office-sub" id="px-status-text">agentes en espera</div>
         </div>
-        <canvas id="px-canvas" style="display:block;border-radius:8px;background:#1a1208;cursor:default;width:100%;image-rendering:pixelated;"></canvas>
+        <div id="auto-status-bar" style="display:flex;gap:8px;padding:4px 8px;background:#0a0a12;border-bottom:1px solid #1a1a2e;align-items:center;flex-wrap:wrap;">
+  <span style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#555;">AGENTES AUTÓNOMOS:</span>
+  <span id="ast-contenido"  style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#f59e0b44;">● Contenido</span>
+  <span id="ast-reportes"   style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#60a5fa44;">● Reportes</span>
+  <span id="ast-ops"        style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#4ade8044;">● Ops</span>
+  <span id="ast-kb"         style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#c084fc44;">● KB</span>
+  <span id="ast-orchestrator" style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#818cf844;">● Orquestador</span>
+  <span id="auto-mode-badge" style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:8px;
+    background:#0d2818;border:1px solid #1a4a28;color:#4ade80;padding:2px 6px;border-radius:4px;">
+    🤖 MODO AUTÓNOMO ACTIVO
+  </span>
+</div>
+<canvas id="px-canvas" style="display:block;border-radius:8px;background:#1a1208;cursor:default;width:100%;image-rendering:pixelated;"></canvas>
         <div class="px-status" id="px-status-bar">
           <div class="px-agent-st" id="pxst-orchestrator"><span class="dot dot-idle"></span>Orquestador: en espera</div>
           <div class="px-agent-st" id="pxst-contenido"><span class="dot dot-idle"></span>Contenido: idle</div>
@@ -2232,7 +2258,170 @@ async function boot() {
   renderTab('warroom');
   tick();
   setInterval(tick, 30000);
+
+  // 🤖 AUTONOMOUS MODE - agents work without being asked
+  setTimeout(() => autonomousLoop(), 8000); // start after 8s
+  setInterval(() => autonomousLoop(), 4 * 60 * 1000); // every 4 min
 }
+
+// ============================================================
+// AUTONOMOUS AGENT SYSTEM
+// Agents pick up pending tasks and work on them automatically
+// ============================================================
+
+let autonomousBusy = false;
+const AUTONOMOUS_TASKS = [
+  { id: 'morning_plan',  agent: 'orchestrator', label: '📋 Revisando plan del día...',      prompt: 'Dame un resumen ejecutivo del estado actual de AMALAY: tareas pendientes, prioridades de esta semana y próximos pasos concretos. Sé conciso.' },
+  { id: 'review_check',  agent: 'contenido',    label: '⭐ Revisando reseñas nuevas...',     prompt: 'Revisa el estado de reseñas de Google de AMALAY. ¿Hay reseñas sin responder? Dame un reporte rápido con recomendaciones.' },
+  { id: 'content_idea',  agent: 'contenido',    label: '💡 Generando idea de contenido...', prompt: 'Genera 1 idea concreta de contenido para redes sociales de AMALAY para esta semana. Incluye caption listo para publicar.' },
+  { id: 'ads_check',     agent: 'reportes',     label: '📊 Revisando Google Ads...',        prompt: 'Dame un reporte del estado actual de la campaña Performance Max de AMALAY. ¿Qué ajustes recomiendas esta semana?' },
+  { id: 'ops_review',    agent: 'ops',          label: '⚙️ Revisando operaciones...',       prompt: 'Revisa las tareas operativas pendientes de AMALAY y dame prioridades para hoy.' },
+];
+
+let autoTaskIndex = 0;
+
+async function autonomousLoop() {
+  if(autonomousBusy) return;
+  if(!LS.get('apikey')) return;
+
+  autonomousBusy = true;
+
+  // Pick next task round-robin
+  const task = AUTONOMOUS_TASKS[autoTaskIndex % AUTONOMOUS_TASKS.length];
+  autoTaskIndex++;
+
+  // Show in pixel office
+  PxGame.setAgentState(task.agent, 'thinking', task.label.split(' ').slice(1).join(' '));
+  if(task.agent !== 'orchestrator') PxGame.setAgentState('orchestrator', 'thinking', 'supervisando...');
+
+  // Show progress bar
+  showAutoProgress(task.agent, task.label);
+
+  try {
+    const memories = await getLearningsPromptSB(task.agent);
+    const sys = buildSystemPrompt(task.agent, memories);
+    const result = await callAgent(task.agent, task.prompt, sys);
+
+    // Save result to memories
+    await extractAndSaveLearnings(task.agent, task.prompt, result);
+
+    // Show result as a notification bubble
+    showAutoResult(task.agent, task.label, result);
+
+    // Log to Supabase tasks
+    try {
+      await SB.from('tasks').insert({
+        client: 'AMALAY',
+        agent: task.agent,
+        description: task.label,
+        output: result.substring(0, 500),
+        status: 'done',
+        created_at: new Date().toISOString()
+      });
+    } catch(e) {}
+
+  } catch(e) {
+    console.error('Auto task error:', e);
+  }
+
+  PxGame.setAgentState(task.agent, 'idle', '');
+  if(task.agent !== 'orchestrator') PxGame.setAgentState('orchestrator', 'idle', '');
+  hideAutoProgress();
+  autonomousBusy = false;
+}
+
+function showAutoProgress(agentId, label) {
+  let bar = document.getElementById('auto-progress-bar');
+  if(!bar) {
+    bar = document.createElement('div');
+    bar.id = 'auto-progress-bar';
+    bar.style.cssText = `
+      position:fixed; bottom:20px; right:20px; z-index:9999;
+      background:#0f1117; border:1px solid #2a2a3a;
+      border-radius:12px; padding:12px 16px; min-width:280px;
+      box-shadow:0 8px 32px rgba(0,0,0,0.6);
+      font-family:'JetBrains Mono',monospace;
+    `;
+    document.body.appendChild(bar);
+  }
+  const colors = {contenido:'#f59e0b',reportes:'#60a5fa',ops:'#4ade80',kb:'#c084fc',orchestrator:'#818cf8'};
+  const color = colors[agentId] || '#aaa';
+  const agNames = {contenido:'Contenido',reportes:'Reportes',ops:'Ops',kb:'AMALAY KB',orchestrator:'Orquestador'};
+  bar.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+      <span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block;animation:pulse 1s infinite;"></span>
+      <span style="color:${color};font-size:10px;font-weight:700;">${agNames[agentId]||agentId}</span>
+      <span style="color:#555;font-size:9px;">trabajando autónomamente</span>
+    </div>
+    <div style="color:#ccc;font-size:10px;margin-bottom:8px;">${label}</div>
+    <div style="background:#1a1a2e;border-radius:4px;height:4px;overflow:hidden;">
+      <div id="auto-pbar" style="height:100%;background:${color};border-radius:4px;width:0%;transition:width 0.3s;"></div>
+    </div>
+  `;
+  // Animate progress bar
+  let prog = 0;
+  const pbar = document.getElementById('auto-pbar');
+  const interval = setInterval(() => {
+    prog = Math.min(prog + Math.random() * 8, 92);
+    if(pbar) pbar.style.width = prog + '%';
+    if(!document.getElementById('auto-progress-bar')) clearInterval(interval);
+  }, 400);
+  bar._interval = interval;
+}
+
+function hideAutoProgress() {
+  const bar = document.getElementById('auto-progress-bar');
+  if(bar) {
+    if(bar._interval) clearInterval(bar._interval);
+    const pbar = document.getElementById('auto-pbar');
+    if(pbar) pbar.style.width = '100%';
+    setTimeout(() => bar.remove(), 1500);
+  }
+}
+
+function showAutoResult(agentId, label, result) {
+  const colors = {contenido:'#f59e0b',reportes:'#60a5fa',ops:'#4ade80',kb:'#c084fc',orchestrator:'#818cf8'};
+  const color = colors[agentId] || '#aaa';
+  const notif = document.createElement('div');
+  notif.style.cssText = `
+    position:fixed; bottom:20px; right:20px; z-index:9999;
+    background:#0f1117; border:1px solid ${color}44;
+    border-left:3px solid ${color};
+    border-radius:8px; padding:12px 16px; max-width:320px;
+    box-shadow:0 8px 32px rgba(0,0,0,0.6);
+    font-family:'JetBrains Mono',monospace;
+    animation:slideIn 0.3s ease;
+    cursor:pointer;
+  `;
+  const preview = result.length > 120 ? result.substring(0,120)+'...' : result;
+  notif.innerHTML = `
+    <div style="color:${color};font-size:9px;font-weight:700;margin-bottom:4px;">✅ ${label}</div>
+    <div style="color:#aaa;font-size:9px;line-height:1.5;">${preview}</div>
+    <div style="color:#555;font-size:8px;margin-top:6px;">Click para ver completo</div>
+  `;
+  notif.onclick = () => {
+    // Show in war room chat
+    addMessage('system', `<strong>${label}</strong><br><br>${result.replace(/\n/g,'<br>')}`);
+    renderTab('warroom');
+    notif.remove();
+  };
+  document.body.appendChild(notif);
+  setTimeout(() => notif.remove(), 12000);
+}
+
+// Start autonomous mode indicator in pixel office
+function initAutonomousIndicator() {
+  const hq = document.querySelector('.px-room-label');
+  if(hq) hq.style.display = 'flex';
+}
+
+// CSS for animations
+const autoStyle = document.createElement('style');
+autoStyle.textContent = `
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  @keyframes slideIn { from{transform:translateX(20px);opacity:0} to{transform:translateX(0);opacity:1} }
+`;
+document.head.appendChild(autoStyle);
 
 // Start
 window.addEventListener('DOMContentLoaded', () => {

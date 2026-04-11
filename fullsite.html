@@ -974,11 +974,11 @@ const PxGame = {
   CHAR_IDX: { contenido:0, reportes:2, ops:3, kb:1, orchestrator:4 },
 
   agents: {
-    contenido:   {x:16,  y:16,  tx:16,  ty:16,  state:'idle', bubble:'', hair:'#d97706', shirt:'#92400e', pants:'#451a03', deskTx:16,  deskTy:16,  spawnEffect:true, spawnStart:0},
-    reportes:    {x:16,  y:64,  tx:16,  ty:64,  state:'idle', bubble:'', hair:'#2563eb', shirt:'#1e40af', pants:'#1e3a8a', deskTx:16,  deskTy:64,  spawnEffect:true, spawnStart:15},
-    ops:         {x:16,  y:112, tx:16,  ty:112, state:'idle', bubble:'', hair:'#16a34a', shirt:'#166534', pants:'#14532d', deskTx:16,  deskTy:112, spawnEffect:true, spawnStart:30},
-    kb:          {x:176, y:32,  tx:176, ty:32,  state:'idle', bubble:'', hair:'#7c3aed', shirt:'#6b21a8', pants:'#581c87', deskTx:176, deskTy:32,  spawnEffect:true, spawnStart:45},
-    orchestrator:{x:176, y:80,  tx:176, ty:80,  state:'idle', bubble:'', hair:'#818cf8', shirt:'#3730a3', pants:'#312e81', deskTx:176, deskTy:80,  hidden:true, spawnEffect:false, spawnStart:0},
+    contenido:   {x:16,  y:32,  tx:16,  ty:32,  state:'idle', bubble:'', hair:'#d97706', shirt:'#92400e', pants:'#451a03', deskTx:16,  deskTy:32,  spawnEffect:true, spawnStart:0},
+    reportes:    {x:16,  y:80,  tx:16,  ty:80,  state:'idle', bubble:'', hair:'#2563eb', shirt:'#1e40af', pants:'#1e3a8a', deskTx:16,  deskTy:80,  spawnEffect:true, spawnStart:15},
+    ops:         {x:16,  y:128, tx:16,  ty:128, state:'idle', bubble:'', hair:'#16a34a', shirt:'#166534', pants:'#14532d', deskTx:16,  deskTy:128, spawnEffect:true, spawnStart:30},
+    kb:          {x:160, y:48,  tx:160, ty:48,  state:'idle', bubble:'', hair:'#7c3aed', shirt:'#6b21a8', pants:'#581c87', deskTx:160, deskTy:48,  spawnEffect:true, spawnStart:45},
+    orchestrator:{x:160, y:96,  tx:160, ty:96,  state:'idle', bubble:'', hair:'#818cf8', shirt:'#3730a3', pants:'#312e81', deskTx:160, deskTy:96,  hidden:true, spawnEffect:false, spawnStart:0},
   },
 
   loadSprites() {
@@ -1059,11 +1059,16 @@ const PxGame = {
   },
 
   update() {
+    const maxX = (this.COLS - 1) * this.T;
+    const maxY = (this.ROWS - 2) * this.T; // keep agents 2 tiles from bottom
     for(const ag of Object.values(this.agents)) {
       const dx = ag.tx - ag.x, dy = ag.ty - ag.y;
       const dist = Math.hypot(dx, dy);
       if(dist > 0.8) { ag.x += dx/dist*0.9; ag.y += dy/dist*0.9; ag.moving=true; }
       else { ag.x=ag.tx; ag.y=ag.ty; ag.moving=false; }
+      // Clamp to canvas bounds
+      ag.x = Math.max(0, Math.min(ag.x, maxX));
+      ag.y = Math.max(0, Math.min(ag.y, maxY));
     }
   },
 
@@ -1333,8 +1338,8 @@ const PxGame = {
                 : thinking ? Math.sin(this.frame*0.09)*2.5
                 : Math.sin(this.frame*0.035)*0.7;
       // Align feet to bottom of tile
-      const offX = (this.T - displayW) / 2; // = 0 since both 16px
-      const offY = -(displayH - this.T); // char is 1 tile, center vertically
+      const offX = (this.T - displayW) / 2; // center horizontally (=0)
+      const offY = 0; // show char from top of tile, full body visible
       ctx.save();
       ctx.imageSmoothingEnabled = false;
       // Shadow

@@ -1319,27 +1319,31 @@ const PxGame = {
     if(sprite && sprite.complete && sprite.naturalWidth > 0) {
       // Metro City: 112x96 = 7 cols x 6 rows, 16x16px per frame
       // Row 0: face down | Row 2: face left | Row 4: face right
-      const FW = 16, FH = 16;
-      // Draw chars at 2x tile size = 32px in tile coords = 128px on screen
-      // This matches Pixel Agents char proportions (chars appear ~2 tiles tall)
-      const displayW = FW * 2; // 32 tile-px = 128 screen-px
-      const displayH = FH * 2; // 32 tile-px = 128 screen-px
+      // CORRECT: Each character frame is 16x32px (2 rows of 16px)
+      // Sheet: 112x96 = 7 cols x 3 chars tall (each char = 16x32)
+      // Char 0 (face down): rows 0-1 → sy=0,  srcH=32
+      // Char 1 (face up):   rows 2-3 → sy=32, srcH=32
+      // Char 2 (face side): rows 4-5 → sy=64, srcH=32
+      const FW = 16, FH = 32; // FULL character height = 32px
+      const displayW = FW * 2; // 32 tile-px wide
+      const displayH = FH * 2; // 64 tile-px tall = full body
       const dx = ag.tx - ag.x, dy = ag.ty - ag.y;
-      let row = 0;
+      // FH=32: sy=0 face down, sy=32 face up, sy=64 face side
+      let sy = 0;
       if(ag.moving) {
-        row = (Math.abs(dx) > Math.abs(dy)) ? (dx > 0 ? 4 : 2) : 0;
+        sy = (Math.abs(dx) > Math.abs(dy)) ? 64 : (dy > 0 ? 0 : 32);
       }
       const col = ag.moving   ? (Math.floor(this.frame / 5) % 7)
                 : typing      ? (Math.floor(this.frame / 18) % 2)
                 : thinking    ? (Math.floor(this.frame / 25) % 2)
                 : 0;
-      const sx = col * FW, sy = row * FH;
+      const sx = col * FW;
       const bob = typing ? Math.sin(this.frame*0.5)*1.2
                 : thinking ? Math.sin(this.frame*0.09)*2.5
                 : Math.sin(this.frame*0.035)*0.7;
       // Align feet to bottom of tile
-      const offX = (this.T - displayW) / 2; // = -8, centers in tile
-      const offY = -(displayH - this.T); // feet at bottom of tile, body above
+      const offX = (this.T - displayW) / 2; // center x in tile (-8px)
+      const offY = -(displayH - this.T*2);   // feet at bottom of 2nd tile
       ctx.save();
       ctx.imageSmoothingEnabled = false;
       // Shadow
@@ -1419,7 +1423,7 @@ const PxGame = {
     const labels={contenido:'Contenido',reportes:'Reportes',ops:'Ops',kb:'KB',orchestrator:'Orquestador'};
     const colors={contenido:'#f59e0b',reportes:'#60a5fa',ops:'#4ade80',kb:'#c084fc',orchestrator:'#818cf8'};
     if(labels[id]) {
-      const charH = (sprite && sprite.complete && sprite.naturalWidth > 0) ? this.T : 12;
+      const charH = (sprite && sprite.complete && sprite.naturalWidth > 0) ? this.T*2 : 12;
       const labelY = py + charH + 2;
       // Label shadow
       ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.font='bold 3px monospace';

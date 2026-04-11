@@ -1320,10 +1320,10 @@ const PxGame = {
       // Metro City: 112x96 = 7 cols x 6 rows, 16x16px per frame
       // Row 0: face down | Row 2: face left | Row 4: face right
       const FW = 16, FH = 16;
-      // At zoom=4 applied to canvas, 1px = 4 screen px
-      // Draw chars at 1x in tile coords — zoom handles scaling
-      const displayW = FW; // 16 tile-pixels = 64 screen pixels
-      const displayH = FH; // 16 tile-pixels = 64 screen pixels
+      // Draw chars at 2x tile size = 32px in tile coords = 128px on screen
+      // This matches Pixel Agents char proportions (chars appear ~2 tiles tall)
+      const displayW = FW * 2; // 32 tile-px = 128 screen-px
+      const displayH = FH * 2; // 32 tile-px = 128 screen-px
       const dx = ag.tx - ag.x, dy = ag.ty - ag.y;
       let row = 0;
       if(ag.moving) {
@@ -1338,8 +1338,8 @@ const PxGame = {
                 : thinking ? Math.sin(this.frame*0.09)*2.5
                 : Math.sin(this.frame*0.035)*0.7;
       // Align feet to bottom of tile
-      const offX = (this.T - displayW) / 2; // center horizontally (=0)
-      const offY = 0; // show char from top of tile, full body visible
+      const offX = (this.T - displayW) / 2; // = -8, centers in tile
+      const offY = -(displayH - this.T); // feet at bottom of tile, body above
       ctx.save();
       ctx.imageSmoothingEnabled = false;
       // Shadow
@@ -1419,13 +1419,39 @@ const PxGame = {
     const labels={contenido:'Contenido',reportes:'Reportes',ops:'Ops',kb:'KB',orchestrator:'Orquestador'};
     const colors={contenido:'#f59e0b',reportes:'#60a5fa',ops:'#4ade80',kb:'#c084fc',orchestrator:'#818cf8'};
     if(labels[id]) {
-      const charH = (sprite && sprite.complete && sprite.naturalWidth > 0) ? 16 : 12;
-      const labelY = py + charH + 3;
+      const charH = (sprite && sprite.complete && sprite.naturalWidth > 0) ? this.T : 12;
+      const labelY = py + charH + 2;
       // Label shadow
       ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.font='bold 3px monospace';
       ctx.textAlign='center'; ctx.fillText(labels[id],px+this.T/2+1,labelY+1);
       ctx.fillStyle=colors[id]||'#aaa';
       ctx.fillText(labels[id],px+this.T/2,labelY); ctx.textAlign='left';
+    }
+  },
+
+  goToMeeting(agentIds) {
+    // Move agents to meeting room around conference table
+    const seats = [
+      {x:11*this.T, y:3*this.T},
+      {x:12*this.T, y:3*this.T},
+      {x:11*this.T, y:5*this.T},
+      {x:12*this.T, y:5*this.T},
+      {x:13*this.T, y:4*this.T},
+    ];
+    let i=0;
+    for(const id of agentIds) {
+      if(!this.agents[id]) continue;
+      const seat = seats[i % seats.length];
+      this.agents[id].tx = seat.x;
+      this.agents[id].ty = seat.y;
+      i++;
+    }
+  },
+
+  returnToDesks() {
+    for(const [id, ag] of Object.entries(this.agents)) {
+      ag.tx = ag.deskTx;
+      ag.ty = ag.deskTy;
     }
   },
 
@@ -1564,6 +1590,11 @@ async function runMission() {
   // Update pixel office status
   const pxTxt = document.getElementById('px-status-text');
   if(pxTxt) pxTxt.textContent = '🧠 Orquestador planificando...';
+  // Check if it's a meeting-type mission
+  const isMeeting = /junta|reunión|meeting|todos|equipo|completo/i.test(missionText);
+  if(isMeeting) {
+    PxGame.goToMeeting(['contenido','reportes','ops','kb','orchestrator']);
+  }
   PxGame.setAgentState('orchestrator','thinking','planificando...');
 
   // Step 1: Orchestrator plans
@@ -1665,7 +1696,7 @@ Usa 1-3 agentes según necesites. Ejemplos de id válidos: contenido, reportes, 
     }
 
     if(pxTxt) pxTxt.textContent = '✅ misión completada — agentes en espera';
-    setTimeout(() => PxGame.allIdle(), 4000);
+    setTimeout(() => { PxGame.allIdle(); PxGame.returnToDesks(); }, 4000);
 
     // Step 4: Extract learnings in background
     const participatingAgents = plan.agents.map(a => a.id);

@@ -959,20 +959,20 @@ const PxGame = {
 
   // Tile types: 0=darkfloor 1=shelf 2=woodfloor 3=carpet 4=desk 5=plant 6=wall_v 7=lightfloor 8=meeting_desk 9=vending 10=clock_wall
   MAP: [
-    [1,1,10,1,1,1,1, 1,1,6,6,6,6,6,6,6,6,6, 1,1,11,1,1,1,1,1],
-    [2,4, 4,2,2,5,2, 4,4,6,3,3,3, 3,3,3,3,3, 6,3, 3,3,3,5,3,7],
-    [2,12,12,2,2,2,2,12,12,6,3,8, 8,8,3,3,3,3,6,3, 3,3,3,3,3,7],
-    [2,2, 2,2,5,2,2, 2,2,6,3,3, 3,3,3,3,3,3,6,5, 3,3,3,3,3,7],
-    [2,4, 4,2,2,2,2, 4,4,2,3,3, 9,3,3,8,8,3,6,3, 3,3,3,3,3,7],
-    [2,12,12,2,2,5,2,12,12,2,3,3, 3,3,3,3,3,3,6,3, 3,3,5,3,3,7],
-    [2,2, 2,2,2,2,2, 2,2,2,2,2, 2,2,2,2,2,2,6,3, 3,3,3,3,3,7],
-    [2,4, 4,2,5,2,2, 4,4,6,3,3, 3,3,3,3,3,3,6,3, 3,3,3,3,3,7],
-    [2,12,12,2,2,2,2,12,12,6,3,3, 3,8,8,3,3,3,6,3, 3,3,3,3,5,7],
-    [2,2, 2,2,2,5,2, 2,2,6,3,3, 3,3,3,3,3,3,6,3, 3,3,3,3,3,7],
-    [2,4, 4,2,2,2,2, 4,4,6,3,3, 3,3,3,3,3,3,6,3, 3,3,3,3,3,7],
-    [2,12,12,2,5,2,2,12,12,6,3,3, 3,3,3,3,5,3,6,3, 3,3,3,3,3,7],
-    [2,2, 2,2,2,2,2, 2,2,6,3,3, 3,3,3,3,3,3,6,3, 3,3,3,3,3,7],
-    [2,2, 2,2,2,2,2, 2,2,6,3,3, 3,3,3,3,3,3,6,3, 3,3,3,3,3,7],
+    [1,1,10,1,1,1,1,1,6,6,6,6,6,6,6,6,6,6,6,1,1,11,1,1,1,1],
+    [2,4, 4,2,2,5,2,4,6,3,3,3,3,3,3,3,3,3,3,6,3, 3,3,3,5,7],
+    [2,12,12,2,2,2,2,12,6,3,13,13,13,13,13,3,3,3,3,6,3,3,3,3,3,7],
+    [2,2, 2,2,5,2,2,2,6,3,12,3, 3, 3,12,3,3,3,3,6,5,3,3,3,3,7],
+    [2,4, 4,2,2,2,2,4,6,3,3, 3, 9, 3,3, 3,3,3,3,6,3,3,3,3,3,7],
+    [2,12,12,2,2,5,2,12,6,3,12,3, 3, 3,12,3,5,3,3,6,3,3,5,3,3,7],
+    [2,2, 2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,6,3,3,3,3,3,7],
+    [2,4, 4,2,5,2,2,4,6,3,3,3,3,3,3,3,3,3,3,6,3,3,3,3,3,7],
+    [2,12,12,2,2,2,2,12,6,3,13,13,13,13,13,3,3,3,3,6,3,3,3,3,5,7],
+    [2,2, 2,2,2,5,2,2,6,3,12,3, 3, 3,12,3,3,3,3,6,3,3,3,3,3,7],
+    [2,4, 4,2,2,2,2,4,6,3,3, 3, 9, 3,3, 3,3,3,3,6,3,3,3,3,3,7],
+    [2,12,12,2,5,2,2,12,6,3,12,3, 3, 3,12,3,5,3,3,6,3,3,3,3,3,7],
+    [2,2, 2,2,2,2,2,2,6,3,3,3,3,3,3,3,3,3,3,6,3,3,3,3,3,7],
+    [2,2, 2,2,2,2,2,2,6,3,3,3,3,3,3,3,3,3,3,6,3,3,3,3,3,7],
   ],
 
   CHAR_IDX: { contenido:0, reportes:2, ops:3, kb:1, orchestrator:4 },
@@ -1073,6 +1073,10 @@ const PxGame = {
       // Clamp to canvas bounds
       ag.x = Math.max(0, Math.min(ag.x, maxX));
       ag.y = Math.max(0, Math.min(ag.y, maxY));
+      // Auto-sit when reaching desk
+      if(!ag.moving && ag.x === ag.deskTx && ag.y === ag.deskTy && ag.state === 'idle') {
+        ag.state = 'typing'; // typing at desk
+      }
     }
   },
 
@@ -1282,6 +1286,20 @@ const PxGame = {
       }
       return;
     }
+    if(type===13) { // CONFERENCE TABLE
+      this.drawFloor('floor5', x, y);
+      ctx.imageSmoothingEnabled=false;
+      // Draw conference table top
+      const tImg = this.sprites['f_table_big'];
+      if(tImg && tImg.complete) {
+        ctx.drawImage(tImg, 0,0, 16,16, x, y, this.T, this.T);
+      } else {
+        ctx.fillStyle='#8B6340'; ctx.fillRect(x+1,y+2,this.T-2,this.T-4);
+        ctx.fillStyle='#6B4320'; ctx.fillRect(x+1,y+this.T-5,this.T-2,3);
+        ctx.fillStyle='rgba(255,255,255,0.1)'; ctx.fillRect(x+2,y+3,this.T-4,2);
+      }
+      return;
+    }
     if(type===12) { // WOODEN CHAIR (in front of desk)
       // Floor under
       const alt2 = ((Math.floor(x/T)+Math.floor(y/T))%2===0);
@@ -1337,10 +1355,15 @@ const PxGame = {
       if(ag.moving) {
         sy = (Math.abs(dx) > Math.abs(dy)) ? 64 : (dy > 0 ? 0 : 32);
       }
+      const sitting = ag.state === 'sitting';
       const col = ag.moving   ? (Math.floor(this.frame / 5) % 7)
                 : typing      ? (Math.floor(this.frame / 18) % 2)
                 : thinking    ? (Math.floor(this.frame / 25) % 2)
+                : sitting     ? 1  // sitting frame
                 : 0;
+      // Sitting: show only lower half (crop top of sprite)
+      const srcY = sitting ? FH/2 : 0;
+      const srcH = sitting ? FH/2 : FH;
       const sx = col * FW;
       const bob = typing ? Math.sin(this.frame*0.5)*1.2
                 : thinking ? Math.sin(this.frame*0.09)*2.5
@@ -1368,7 +1391,9 @@ const PxGame = {
         } else { ag.spawnEffect = false; }
       }
       if(thinking) ctx.globalAlpha = Math.min(ctx.globalAlpha||1, 0.88+Math.sin(this.frame*0.1)*0.12);
-      ctx.drawImage(sprite, sx, sy, FW, FH, px+offX, py+offY+bob, displayW, displayH);
+      const dH = sitting ? displayH/2 : displayH;
+      const dOffY = sitting ? displayH/2 : 0;
+      ctx.drawImage(sprite, sx, sy+srcY, FW, srcH, px+offX, py+offY+bob+dOffY, displayW, dH);
       ctx.globalAlpha = 1;
       ctx.restore();
     } else {
@@ -1438,13 +1463,12 @@ const PxGame = {
   },
 
   goToMeeting(agentIds) {
-    // Move agents to meeting room around conference table
     const seats = [
-      {x:11*this.T, y:2*this.T},
-      {x:13*this.T, y:2*this.T},
-      {x:11*this.T, y:5*this.T},
-      {x:13*this.T, y:5*this.T},
-      {x:12*this.T, y:4*this.T},
+      {x:10*this.T, y:2*this.T},
+      {x:14*this.T, y:2*this.T},
+      {x:10*this.T, y:5*this.T},
+      {x:14*this.T, y:5*this.T},
+      {x:12*this.T, y:3*this.T},
     ];
     let i=0;
     for(const id of agentIds) {
@@ -1452,6 +1476,11 @@ const PxGame = {
       const seat = seats[i % seats.length];
       this.agents[id].tx = seat.x;
       this.agents[id].ty = seat.y;
+      // Sit down after 2 seconds (walking time)
+      const agId = id;
+      setTimeout(() => {
+        if(this.agents[agId]) this.agents[agId].state = 'sitting';
+      }, 2000);
       i++;
     }
   },
@@ -1460,7 +1489,16 @@ const PxGame = {
     for(const [id, ag] of Object.entries(this.agents)) {
       ag.tx = ag.deskTx;
       ag.ty = ag.deskTy;
+      ag.state = 'idle'; // stand up
     }
+  },
+
+  sitAtDesk(id) {
+    const ag = this.agents[id];
+    if(!ag) return;
+    ag.tx = ag.deskTx;
+    ag.ty = ag.deskTy;
+    ag.state = 'sitting';
   },
 
   setAgentState(id, state, bubble) {

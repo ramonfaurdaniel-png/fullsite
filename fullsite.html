@@ -247,7 +247,7 @@ hr.div{border:none;border-top:1px solid var(--border);margin:16px 0;}
 .pixel-office-sub{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim);}
 .px-room-label{position:absolute;font-family:'JetBrains Mono',monospace;font-size:8px;color:rgba(255,255,255,0.3);pointer-events:none;letter-spacing:.05em;}
 #px-canvas{width:100% !important;height:auto !important;display:block;border-radius:8px;image-rendering:pixelated;image-rendering:crisp-edges;}
-.pixel-office{position:relative;width:100%;height:640px;background:#0e0e1a;border-radius:8px;overflow:hidden;image-rendering:pixelated;}
+.pixel-office{position:relative;width:100%;height:896px;background:#0e0e1a;border-radius:8px;overflow:hidden;image-rendering:pixelated;}
 .px-floor{position:absolute;inset:0;background:repeating-linear-gradient(90deg,#1e1408 0px,#1e1408 16px,#221608 16px,#221608 32px),repeating-linear-gradient(180deg,#1e1408 0px,#1e1408 16px,#221608 16px,#221608 32px);background-blend-mode:multiply;}
 .px-wall{position:absolute;top:0;left:0;right:0;height:40px;background:#0e0e1a;border-bottom:2px solid #1a1a2e;}
 .px-wall::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:#2a2a4a;}
@@ -953,32 +953,36 @@ function setMission(text) {
 // ============================================================
 const PxGame = {
   canvas: null, ctx: null, animId: null, frame: 0,
-  T: 16, ZOOM: 4, COLS: 20, ROWS: 10,
+  T: 16, ZOOM: 4, COLS: 26, ROWS: 14,
   sprites: {},
   spritesLoaded: false,
 
   // Tile types: 0=darkfloor 1=shelf 2=woodfloor 3=carpet 4=desk 5=plant 6=wall_v 7=lightfloor 8=meeting_desk 9=vending 10=clock_wall
   MAP: [
-    [1,1,10,1,1,1,1,10,6,7,7,11,7,7,7,11,7,7,7,7],
-    [2,4,4, 2,5,2,4, 4,6,3,3, 3,3,3,5, 3,3,3,3,7],
-    [2,12,12,2,2,2,12,12,6,3,8,8,8,3,3,3,3,3,3,7],
-    [2,2,2, 2,2,2,2, 2,6,3,3,3,3,3,3,3,3,5,3,7],
-    [2,4,4, 5,2,2,4, 4,6,3,9,3,3,8,8,8,3,3,3,7],
-    [2,12,12,2,2,2,12,12,6,3,3,3,3,3,3,3,3,3,3,7],
-    [2,2,2, 2,2,2,2, 2,6,3,3,3,3,3,3,3,5,3,3,7],
-    [2,4,4, 2,5,2,4, 4,6,3,3,3,3,3,3,3,3,3,3,7],
-    [2,12,12,2,2,2,12,12,6,3,3,3,3,3,3,3,3,3,3,7],
-    [2,2,2, 2,2,2,2, 2,6,3,3,3,3,3,3,3,3,3,3,7],
+    [1,1,10,1,1,1,1, 1,1,6,6,6,6,6,6,6,6,6, 1,1,11,1,1,1,1,1],
+    [2,4, 4,2,2,5,2, 4,4,6,3,3,3, 3,3,3,3,3, 6,3, 3,3,3,5,3,7],
+    [2,12,12,2,2,2,2,12,12,6,3,8, 8,8,3,3,3,3,6,3, 3,3,3,3,3,7],
+    [2,2, 2,2,5,2,2, 2,2,6,3,3, 3,3,3,3,3,3,6,5, 3,3,3,3,3,7],
+    [2,4, 4,2,2,2,2, 4,4,2,3,3, 9,3,3,8,8,3,6,3, 3,3,3,3,3,7],
+    [2,12,12,2,2,5,2,12,12,2,3,3, 3,3,3,3,3,3,6,3, 3,3,5,3,3,7],
+    [2,2, 2,2,2,2,2, 2,2,2,2,2, 2,2,2,2,2,2,6,3, 3,3,3,3,3,7],
+    [2,4, 4,2,5,2,2, 4,4,6,3,3, 3,3,3,3,3,3,6,3, 3,3,3,3,3,7],
+    [2,12,12,2,2,2,2,12,12,6,3,3, 3,8,8,3,3,3,6,3, 3,3,3,3,5,7],
+    [2,2, 2,2,2,5,2, 2,2,6,3,3, 3,3,3,3,3,3,6,3, 3,3,3,3,3,7],
+    [2,4, 4,2,2,2,2, 4,4,6,3,3, 3,3,3,3,3,3,6,3, 3,3,3,3,3,7],
+    [2,12,12,2,5,2,2,12,12,6,3,3, 3,3,3,3,5,3,6,3, 3,3,3,3,3,7],
+    [2,2, 2,2,2,2,2, 2,2,6,3,3, 3,3,3,3,3,3,6,3, 3,3,3,3,3,7],
+    [2,2, 2,2,2,2,2, 2,2,6,3,3, 3,3,3,3,3,3,6,3, 3,3,3,3,3,7],
   ],
 
   CHAR_IDX: { contenido:0, reportes:2, ops:3, kb:1, orchestrator:4 },
 
   agents: {
-    contenido:   {x:16,  y:32,  tx:16,  ty:32,  state:'idle', bubble:'', hair:'#d97706', shirt:'#92400e', pants:'#451a03', deskTx:16,  deskTy:32,  spawnEffect:true, spawnStart:0},
+    contenido:   {x:16,  y:16,  tx:16,  ty:16,  state:'idle', bubble:'', hair:'#d97706', shirt:'#92400e', pants:'#451a03', deskTx:16,  deskTy:16,  spawnEffect:true, spawnStart:0},
     reportes:    {x:16,  y:80,  tx:16,  ty:80,  state:'idle', bubble:'', hair:'#2563eb', shirt:'#1e40af', pants:'#1e3a8a', deskTx:16,  deskTy:80,  spawnEffect:true, spawnStart:15},
-    ops:         {x:16,  y:128, tx:16,  ty:128, state:'idle', bubble:'', hair:'#16a34a', shirt:'#166534', pants:'#14532d', deskTx:16,  deskTy:128, spawnEffect:true, spawnStart:30},
-    kb:          {x:160, y:48,  tx:160, ty:48,  state:'idle', bubble:'', hair:'#7c3aed', shirt:'#6b21a8', pants:'#581c87', deskTx:160, deskTy:48,  spawnEffect:true, spawnStart:45},
-    orchestrator:{x:160, y:96,  tx:160, ty:96,  state:'idle', bubble:'', hair:'#818cf8', shirt:'#3730a3', pants:'#312e81', deskTx:160, deskTy:96,  hidden:true, spawnEffect:false, spawnStart:0},
+    ops:         {x:16,  y:144, tx:16,  ty:144, state:'idle', bubble:'', hair:'#16a34a', shirt:'#166534', pants:'#14532d', deskTx:16,  deskTy:144, spawnEffect:true, spawnStart:30},
+    kb:          {x:192, y:32,  tx:192, ty:32,  state:'idle', bubble:'', hair:'#7c3aed', shirt:'#6b21a8', pants:'#581c87', deskTx:192, deskTy:32,  spawnEffect:true, spawnStart:45},
+    orchestrator:{x:192, y:112, tx:192, ty:112, state:'idle', bubble:'', hair:'#818cf8', shirt:'#3730a3', pants:'#312e81', deskTx:192, deskTy:112, hidden:true, spawnEffect:false, spawnStart:0},
   },
 
   loadSprites() {
@@ -1079,14 +1083,14 @@ const PxGame = {
     // Wall line at bottom of shelves
     ctx.fillStyle='rgba(0,0,0,0.15)'; ctx.fillRect(0,T,COLS*T,2);
     // Room divider shadow effect
-    ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(this.T*8,0,2,this.ROWS*this.T);
-    ctx.fillStyle='rgba(0,0,0,0.2)'; ctx.fillRect(this.T*8+2,0,2,this.ROWS*this.T);
+    ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(this.T*9,0,2,this.ROWS*this.T);
+    ctx.fillStyle='rgba(0,0,0,0.2)'; ctx.fillRect(this.T*9+2,0,2,this.ROWS*this.T);
 
     // Room labels
     ctx.font='bold 3px "JetBrains Mono", monospace'; // 3px * zoom4 = 12px screen
     ctx.fillStyle='rgba(255,255,255,0.2)';
     ctx.fillText('OPEN OFFICE', 2, this.ROWS*this.T - 2);
-    ctx.fillText('MEETING ROOM', this.T*10, this.ROWS*this.T - 2);
+    ctx.fillText('MEETING ROOM', this.T*11, this.ROWS*this.T - 2);
 
     // Agents (sorted by y for depth)
     const sorted = Object.entries(this.agents).filter(([,a])=>!a.hidden||(a.state!=='idle'||a.x!==240)).sort(([,a],[,b])=>a.y-b.y);
@@ -1325,8 +1329,8 @@ const PxGame = {
       // Char 1 (face up):   rows 2-3 → sy=32, srcH=32
       // Char 2 (face side): rows 4-5 → sy=64, srcH=32
       const FW = 16, FH = 32; // FULL character height = 32px
-      const displayW = FW * 2; // 32 tile-px wide
-      const displayH = FH * 2; // 64 tile-px tall = full body
+      const displayW = FW; // 16 tile-px wide = 64px screen (smaller)
+      const displayH = FH; // 32 tile-px tall = 128px screen (full body)
       const dx = ag.tx - ag.x, dy = ag.ty - ag.y;
       // FH=32: sy=0 face down, sy=32 face up, sy=64 face side
       let sy = 0;
@@ -1342,8 +1346,8 @@ const PxGame = {
                 : thinking ? Math.sin(this.frame*0.09)*2.5
                 : Math.sin(this.frame*0.035)*0.7;
       // Align feet to bottom of tile
-      const offX = (this.T - displayW) / 2; // center x in tile (-8px)
-      const offY = -(displayH - this.T*2);   // feet at bottom of 2nd tile
+      const offX = 0; // 16px wide = same as tile
+      const offY = -this.T; // body occupies 2 tiles, head above
       ctx.save();
       ctx.imageSmoothingEnabled = false;
       // Shadow
@@ -1423,7 +1427,7 @@ const PxGame = {
     const labels={contenido:'Contenido',reportes:'Reportes',ops:'Ops',kb:'KB',orchestrator:'Orquestador'};
     const colors={contenido:'#f59e0b',reportes:'#60a5fa',ops:'#4ade80',kb:'#c084fc',orchestrator:'#818cf8'};
     if(labels[id]) {
-      const charH = (sprite && sprite.complete && sprite.naturalWidth > 0) ? this.T*2 : 12;
+      const charH = (sprite && sprite.complete && sprite.naturalWidth > 0) ? this.T : 10;
       const labelY = py + charH + 2;
       // Label shadow
       ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.font='bold 3px monospace';
@@ -1436,11 +1440,11 @@ const PxGame = {
   goToMeeting(agentIds) {
     // Move agents to meeting room around conference table
     const seats = [
-      {x:11*this.T, y:3*this.T},
-      {x:12*this.T, y:3*this.T},
+      {x:11*this.T, y:2*this.T},
+      {x:13*this.T, y:2*this.T},
       {x:11*this.T, y:5*this.T},
-      {x:12*this.T, y:5*this.T},
-      {x:13*this.T, y:4*this.T},
+      {x:13*this.T, y:5*this.T},
+      {x:12*this.T, y:4*this.T},
     ];
     let i=0;
     for(const id of agentIds) {

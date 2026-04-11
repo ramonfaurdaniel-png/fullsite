@@ -959,21 +959,21 @@ const PxGame = {
 
   // Tile types: 0=darkfloor 1=shelf 2=woodfloor 3=carpet 4=desk 5=plant 6=wall_v 7=lightfloor 8=meeting_desk 9=vending 10=clock_wall
   MAP: [
-    [1,1,1, 1,1,1,1,1, 6,6,6,6,6,6,6,6,6,6,6, 1,1,1, 1,1,1,1],
-    [1,1,10,1,1,1,1,1, 6,6,6,6,6,6,6,6,6,6,6, 1,1,11,1,1,1,1],
-    [2,4, 4,2,2,5,2,4, 6,3,5,3,3,3,3,3,5,3,3, 6,3,3, 3,3,5,7],
-    [2,12,12,2,2,2,2,12,6,3,3,3,3,3,3,3,3,3,3,6,3,3, 3,3,3,7],
-    [2,2, 2,2,5,2,2,2, 6,3,8,13,13,13,13,8,3,3,3,6,5,3,3,3,3,7],
-    [2,4, 4,2,2,2,2,4, 6,3,3,13,3, 3,13,3,3,3,3,6,3,3,3,3,3,7],
-    [2,12,12,2,2,5,2,12,6,3,3,13,9, 9,13,3,5,3,3,6,3,3,5,3,3,7],
-    [2,2, 2,2,2,2,2,2, 6,3,3,13,3, 3,13,3,3,3,3,6,3,3,3,3,3,7],
-    [2,4, 4,2,5,2,2,4, 6,3,8,13,13,13,13,8,3,3,3,6,3,3,3,3,3,7],
-    [2,12,12,2,2,2,2,12,2,3,3,3,3,3,3,3,3,3,3,6,3,3,3,3,5,7],
-    [2,2, 2,2,2,5,2,2, 6,3,3,3,3,3,3,3,3,3,3,6,3,3,3,3,3,7],
-    [2,4, 4,2,2,2,2,4, 6,3,5,3,3,3,3,3,5,3,3,6,3,3,3,3,3,7],
-    [2,12,12,2,5,2,2,12,6,3,3,3,3,3,3,3,3,3,3,6,3,3,3,3,3,7],
-    [2,2, 2,2,2,2,2,2, 6,3,3,3,3,3,3,3,3,3,3,6,3,3,3,3,3,7],
-    [2,2, 2,2,2,2,2,2, 6,3,3,3,3,3,3,3,3,3,3,6,3,3,3,3,3,7],
+    [1,1,1, 1,1,1,1,1, 6,6,6, 6,6,6, 6,6,6,6,6, 1,1,11,1,1,1,1],
+    [1,1,10,1,1,1,1,1, 6,6,6, 6,6,6, 6,6,6,6,6, 1,1,1, 1,1,1,1],
+    [2,4, 4,2,2,5,2,4, 6,3,15,3,3,15,3,3,3,3,3, 6,5,3, 3,3,5,3],
+    [2,12,12,2,2,2,2,12,6,3,3, 3,3,3, 3,3,3,3,3, 6,3,3, 3,3,3,3],
+    [2,2, 2,2,5,2,2,2, 6,3,8, 3,9,3, 8,3,3,3,3, 6,3,3, 3,3,3,3],
+    [2,4, 4,2,2,2,2,4, 6,3,3, 3,3,3, 3,3,3,3,3, 6,5,3, 3,3,3,3],
+    [2,12,12,2,2,5,2,12,6,3,14,3,9,3, 14,3,5,3,3,6,3,3, 3,3,5,3],
+    [2,2, 2,2,2,2,2,2, 2,2,2, 2,2,2, 2,2,2,2,2, 6,3,3, 3,3,3,3],
+    [2,4, 4,2,5,2,2,4, 6,3,3, 3,3,3, 3,3,3,3,3, 6,3,3, 3,3,3,3],
+    [2,12,12,2,2,2,2,12,6,3,15,3,3,15,3,3,3,3,3, 6,3,3, 5,3,3,3],
+    [2,2, 2,2,2,5,2,2, 6,3,3, 3,3,3, 3,3,3,3,3, 6,3,3, 3,3,3,3],
+    [2,4, 4,2,2,2,2,4, 6,3,8, 3,9,3, 8,3,3,3,3, 6,3,5, 3,3,3,3],
+    [2,12,12,2,5,2,2,12,6,3,3, 3,3,3, 3,3,3,3,3, 6,3,3, 3,3,3,3],
+    [2,2, 2,2,2,2,2,2, 6,3,14,3,9,3, 14,3,5,3,3, 6,3,3, 3,3,5,3],
+    [2,2, 2,2,2,2,2,2, 6,3,3, 3,3,3, 3,3,3,3,3, 6,3,3, 3,3,3,3],
   ],
 
   CHAR_IDX: { contenido:0, reportes:2, ops:3, kb:1, orchestrator:4 },
@@ -1011,6 +1011,8 @@ const PxGame = {
       clock:        'assets/furniture/CLOCK/CLOCK.png',
       whiteboard:   'assets/furniture/WHITEBOARD/WHITEBOARD.png',
       sofa_front:   'assets/furniture/SOFA/SOFA_FRONT.png',
+      sofa_back:    'assets/furniture/SOFA/SOFA_BACK.png',
+      sofa_side:    'assets/furniture/SOFA/SOFA_SIDE.png',
       sofa_back:    'assets/furniture/SOFA/SOFA_BACK.png',
       sofa_side:    'assets/furniture/SOFA/SOFA_SIDE.png',
       chair_front:  'assets/furniture/WOODEN_CHAIR/WOODEN_CHAIR_FRONT.png',
@@ -1324,6 +1326,33 @@ const PxGame = {
       } else {
         ctx.fillStyle='#6B4E2E'; ctx.fillRect(x+4,y+4,T-8,T-8);
         ctx.fillStyle='#8B6340'; ctx.fillRect(x+6,y+6,T-12,T-12);
+      }
+      return;
+    }
+    if(type===14) { // SOFA_BACK (facing away from camera)
+      const T=this.T;
+      this.drawFloor('floor5', x, y);
+      const sofaImg = this.sprites['f_sofa_back'];
+      ctx.imageSmoothingEnabled=false;
+      if(sofaImg && sofaImg.complete) {
+        ctx.drawImage(sofaImg, 0,0, 32,16, x-T, y+T/4, T*3, T/2);
+      } else {
+        ctx.fillStyle='#C25B5B'; ctx.fillRect(x+1,y+2,T-2,T/2-2);
+        ctx.fillStyle='#A03C3C'; ctx.fillRect(x+1,y+2,T-2,3);
+        ctx.fillStyle='rgba(255,255,255,0.15)'; ctx.fillRect(x+3,y+3,T/2-4,2);
+      }
+      return;
+    }
+    if(type===15) { // DOUBLE_BOOKSHELF on meeting room wall
+      ctx.fillStyle='#12120e'; ctx.fillRect(x,y,this.T,this.T);
+      const bsImg = this.sprites['f_dbl_bookshelf'];
+      ctx.imageSmoothingEnabled=false;
+      if(bsImg && bsImg.complete) {
+        ctx.drawImage(bsImg, 0,0, 32,32, x, y, this.T*2, this.T*2);
+      } else {
+        ctx.fillStyle='#3d2b0e'; ctx.fillRect(x,y,this.T,this.T);
+        const cols=['#dc2626','#2563eb','#16a34a','#d97706','#7c3aed','#0891b2'];
+        for(let i=0;i<4;i++){ctx.fillStyle=cols[i%6];ctx.fillRect(x+2+i*3,y+4,2,this.T-8);}
       }
       return;
     }

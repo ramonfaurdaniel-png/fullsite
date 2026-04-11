@@ -959,21 +959,21 @@ const PxGame = {
 
   // Tile types: 0=darkfloor 1=shelf 2=woodfloor 3=carpet 4=desk 5=plant 6=wall_v 7=lightfloor 8=meeting_desk 9=vending 10=clock_wall
   MAP: [
-    [1,1,1, 1,1,1,1,1,6,6,6,6,6,6,6,6,6,6,6,1,1,1, 1,1,1,1],
-    [1,1,10,1,1,1,1,1,6,6,6,6,6,6,6,6,6,6,6,1,1,11,1,1,1,1],
-    [2,4, 4,2,2,5,2,4,6,3,3,3,3,3,3,3,3,3,3,6,3, 3,3,3,5,7],
-    [2,12,12,2,2,2,2,12,6,3,8, 13,13,13,8, 3,3,3,3,6,3,3,3,3,3,7],
-    [2,2, 2,2,5,2,2,2,6,3,12,13,13,13,12,3,3,3,3,6,5,3,3,3,3,7],
-    [2,4, 4,2,2,2,2,4,6,3,3, 13,9, 13,3, 3,3,3,3,6,3,3,3,3,3,7],
-    [2,12,12,2,2,5,2,12,6,3,12,13,13,13,12,3,5,3,3,6,3,3,5,3,3,7],
-    [2,2, 2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,6,3,3,3,3,3,7],
-    [2,4, 4,2,5,2,2,4,6,3,3,3,3,3,3,3,3,3,3,6,3,3,3,3,3,7],
-    [2,12,12,2,2,2,2,12,6,3,13,13,13,13,13,3,3,3,3,6,3,3,3,3,5,7],
-    [2,2, 2,2,2,5,2,2,6,3,12,3, 3, 3,12,3,3,3,3,6,3,3,3,3,3,7],
-    [2,4, 4,2,2,2,2,4,6,3,3, 3, 9, 3,3, 3,3,3,3,6,3,3,3,3,3,7],
-    [2,12,12,2,5,2,2,12,6,3,12,3, 3, 3,12,3,5,3,3,6,3,3,3,3,3,7],
-    [2,2, 2,2,2,2,2,2,6,3,3,3,3,3,3,3,3,3,3,6,3,3,3,3,3,7],
-    [2,2, 2,2,2,2,2,2,6,3,3,3,3,3,3,3,3,3,3,6,3,3,3,3,3,7],
+    [1,1,1, 1,1,1,1,1, 6,6,6,6,6,6,6,6,6,6,6, 1,1,1, 1,1,1,1],
+    [1,1,10,1,1,1,1,1, 6,6,6,6,6,6,6,6,6,6,6, 1,1,11,1,1,1,1],
+    [2,4, 4,2,2,5,2,4, 6,3,5,3,3,3,3,3,5,3,3, 6,3,3, 3,3,5,7],
+    [2,12,12,2,2,2,2,12,6,3,3,3,3,3,3,3,3,3,3,6,3,3, 3,3,3,7],
+    [2,2, 2,2,5,2,2,2, 6,3,8,13,13,13,13,8,3,3,3,6,5,3,3,3,3,7],
+    [2,4, 4,2,2,2,2,4, 6,3,3,13,3, 3,13,3,3,3,3,6,3,3,3,3,3,7],
+    [2,12,12,2,2,5,2,12,6,3,3,13,9, 9,13,3,5,3,3,6,3,3,5,3,3,7],
+    [2,2, 2,2,2,2,2,2, 6,3,3,13,3, 3,13,3,3,3,3,6,3,3,3,3,3,7],
+    [2,4, 4,2,5,2,2,4, 6,3,8,13,13,13,13,8,3,3,3,6,3,3,3,3,3,7],
+    [2,12,12,2,2,2,2,12,2,3,3,3,3,3,3,3,3,3,3,6,3,3,3,3,5,7],
+    [2,2, 2,2,2,5,2,2, 6,3,3,3,3,3,3,3,3,3,3,6,3,3,3,3,3,7],
+    [2,4, 4,2,2,2,2,4, 6,3,5,3,3,3,3,3,5,3,3,6,3,3,3,3,3,7],
+    [2,12,12,2,5,2,2,12,6,3,3,3,3,3,3,3,3,3,3,6,3,3,3,3,3,7],
+    [2,2, 2,2,2,2,2,2, 6,3,3,3,3,3,3,3,3,3,3,6,3,3,3,3,3,7],
+    [2,2, 2,2,2,2,2,2, 6,3,3,3,3,3,3,3,3,3,3,6,3,3,3,3,3,7],
   ],
 
   CHAR_IDX: { contenido:0, reportes:2, ops:3, kb:1, orchestrator:4 },
@@ -1901,17 +1901,16 @@ function renderWarRoom() {
           <div class="pixel-office-title">⬡ Fullsite HQ</div>
           <div class="pixel-office-sub" id="px-status-text">agentes en espera</div>
         </div>
-        <div id="auto-status-bar" style="display:flex;gap:8px;padding:4px 8px;background:#0a0a12;border-bottom:1px solid #1a1a2e;align-items:center;flex-wrap:wrap;">
-  <span style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#555;">AGENTES AUTÓNOMOS:</span>
-  <span id="ast-contenido"  style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#f59e0b44;">● Contenido</span>
-  <span id="ast-reportes"   style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#60a5fa44;">● Reportes</span>
-  <span id="ast-ops"        style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#4ade8044;">● Ops</span>
-  <span id="ast-kb"         style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#c084fc44;">● KB</span>
-  <span id="ast-orchestrator" style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#818cf844;">● Orquestador</span>
-  <span id="auto-mode-badge" style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:8px;
-    background:#0d2818;border:1px solid #1a4a28;color:#4ade80;padding:2px 6px;border-radius:4px;">
-    🤖 MODO AUTÓNOMO ACTIVO
-  </span>
+        <div id="auto-status-bar" style="display:flex;gap:6px;padding:6px 12px;background:#080810;border-bottom:1px solid #1a1a2e;align-items:center;flex-wrap:wrap;min-height:28px;">
+  <span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#333;letter-spacing:.05em;">🤖</span>
+  <span id="ast-contenido"   style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#f59e0b55;transition:all .3s;">● Contenido</span>
+  <span id="ast-reportes"    style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#60a5fa55;transition:all .3s;">● Reportes</span>
+  <span id="ast-ops"         style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#4ade8055;transition:all .3s;">● Ops</span>
+  <span id="ast-kb"          style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#c084fc55;transition:all .3s;">● KB</span>
+  <span id="ast-orchestrator" style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#818cf855;transition:all .3s;">● Orquestador</span>
+  <span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:8px;
+    background:#0d1f10;border:1px solid #1a3a1a;color:#4ade80;padding:2px 8px;border-radius:4px;
+    animation:pulse 2s infinite;">AUTÓNOMO</span>
 </div>
 <canvas id="px-canvas" style="display:block;border-radius:8px;background:#1a1208;cursor:default;width:100%;image-rendering:pixelated;"></canvas>
         <div class="px-status" id="px-status-bar">
@@ -2260,8 +2259,8 @@ async function boot() {
   setInterval(tick, 30000);
 
   // 🤖 AUTONOMOUS MODE - agents work without being asked
-  setTimeout(() => autonomousLoop(), 8000); // start after 8s
-  setInterval(() => autonomousLoop(), 4 * 60 * 1000); // every 4 min
+  setTimeout(() => autonomousLoop(), 5000);            // first task in 5s
+  setInterval(() => autonomousLoop(), 3 * 60 * 1000); // then every 3 min
 }
 
 // ============================================================
@@ -2298,12 +2297,30 @@ async function autonomousLoop() {
   showAutoProgress(task.agent, task.label);
 
   try {
-    const memories = await getLearningsPromptSB(task.agent);
-    const sys = buildSystemPrompt(task.agent, memories);
-    const result = await callAgent(task.agent, task.prompt, sys);
+    const apiKey = LS.get('apikey');
+    if(!apiKey) { autonomousBusy=false; return; }
+
+    const sys = await buildSystemPrompt(task.agent, task.prompt);
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:800,
+        system: sys,
+        messages:[{role:'user', content: task.prompt}]
+      })
+    });
+    const data = await resp.json();
+    const result = data.content?.map(b=>b.text||'').join('') || 'Sin respuesta.';
 
     // Save result to memories
-    await extractAndSaveLearnings(task.agent, task.prompt, result);
+    await extractAndSaveLearnings(task.prompt, {[task.agent]: result}, [task.agent]);
 
     // Show result as a notification bubble
     showAutoResult(task.agent, task.label, result);

@@ -241,12 +241,13 @@ hr.div{border:none;border-top:1px solid var(--border);margin:16px 0;}
 .mission-quick-btn{background:var(--card);border:1px solid var(--border);border-radius:5px;padding:4px 10px;font-size:10px;color:var(--dim);font-family:'JetBrains Mono',monospace;cursor:pointer;transition:all .15s;}
 .mission-quick-btn:hover{border-color:var(--border2);color:var(--muted);}
 /* ---- PIXEL OFFICE ---- */
-.pixel-office-wrap{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:22px;overflow:hidden;}
+.pixel-office-wrap{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:22px;overflow:hidden;position:relative;}
 .pixel-office-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
 .pixel-office-title{font-size:12px;font-weight:700;color:var(--text);}
 .pixel-office-sub{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim);}
+.px-room-label{position:absolute;font-family:'JetBrains Mono',monospace;font-size:8px;color:rgba(255,255,255,0.3);pointer-events:none;letter-spacing:.05em;}
 #px-canvas{width:100% !important;height:auto !important;display:block;border-radius:8px;image-rendering:pixelated;image-rendering:crisp-edges;}
-.pixel-office{position:relative;width:100%;height:180px;background:#1a120a;border-radius:8px;overflow:hidden;image-rendering:pixelated;}
+.pixel-office{position:relative;width:100%;height:640px;background:#0e0e1a;border-radius:8px;overflow:hidden;image-rendering:pixelated;}
 .px-floor{position:absolute;inset:0;background:repeating-linear-gradient(90deg,#1e1408 0px,#1e1408 16px,#221608 16px,#221608 32px),repeating-linear-gradient(180deg,#1e1408 0px,#1e1408 16px,#221608 16px,#221608 32px);background-blend-mode:multiply;}
 .px-wall{position:absolute;top:0;left:0;right:0;height:40px;background:#0e0e1a;border-bottom:2px solid #1a1a2e;}
 .px-wall::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:#2a2a4a;}
@@ -952,36 +953,90 @@ function setMission(text) {
 // ============================================================
 const PxGame = {
   canvas: null, ctx: null, animId: null, frame: 0,
-  T: 32, COLS: 16, ROWS: 5,
+  T: 16, ZOOM: 4, COLS: 20, ROWS: 10,
   sprites: {},
   spritesLoaded: false,
 
+  // Tile types: 0=darkfloor 1=shelf 2=woodfloor 3=carpet 4=desk 5=plant 6=wall_v 7=lightfloor 8=meeting_desk 9=vending 10=clock_wall
   MAP: [
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [2,2,4,4,2,5,3,3,3,4,4,3,5,3,3,3],
-    [2,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3],
-    [2,2,4,4,2,5,3,3,3,4,4,3,5,3,3,3],
-    [2,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3],
+    [1,1,10,1,1,1,1,10,6,7,7,11,7,7,7,11,7,7,7,7],
+    [2,4,4, 2,5,2,4, 4,6,3,3, 3,3,3,5, 3,3,3,3,7],
+    [2,12,12,2,2,2,12,12,6,3,8,8,8,3,3,3,3,3,3,7],
+    [2,2,2, 2,2,2,2, 2,6,3,3,3,3,3,3,3,3,5,3,7],
+    [2,4,4, 5,2,2,4, 4,6,3,9,3,3,8,8,8,3,3,3,7],
+    [2,12,12,2,2,2,12,12,6,3,3,3,3,3,3,3,3,3,3,7],
+    [2,2,2, 2,2,2,2, 2,6,3,3,3,3,3,3,3,5,3,3,7],
+    [2,4,4, 2,5,2,4, 4,6,3,3,3,3,3,3,3,3,3,3,7],
+    [2,12,12,2,2,2,12,12,6,3,3,3,3,3,3,3,3,3,3,7],
+    [2,2,2, 2,2,2,2, 2,6,3,3,3,3,3,3,3,3,3,3,7],
   ],
 
   CHAR_IDX: { contenido:0, reportes:2, ops:3, kb:1, orchestrator:4 },
 
   agents: {
-    contenido:   {x:64,  y:96,  tx:64,  ty:96,  state:'idle', bubble:'', hair:'#d97706', shirt:'#92400e', pants:'#451a03', deskTx:64,  deskTy:32},
-    reportes:    {x:160, y:96,  tx:160, ty:96,  state:'idle', bubble:'', hair:'#2563eb', shirt:'#1e40af', pants:'#1e3a8a', deskTx:160, deskTy:32},
-    ops:         {x:288, y:96,  tx:288, ty:96,  state:'idle', bubble:'', hair:'#16a34a', shirt:'#166534', pants:'#14532d', deskTx:288, deskTy:32},
-    kb:          {x:384, y:96,  tx:384, ty:96,  state:'idle', bubble:'', hair:'#7c3aed', shirt:'#6b21a8', pants:'#581c87', deskTx:384, deskTy:32},
-    orchestrator:{x:224, y:128, tx:224, ty:128, state:'idle', bubble:'', hair:'#818cf8', shirt:'#3730a3', pants:'#312e81', deskTx:224, deskTy:64, hidden:true},
+    contenido:   {x:16,  y:16,  tx:16,  ty:16,  state:'idle', bubble:'', hair:'#d97706', shirt:'#92400e', pants:'#451a03', deskTx:16,  deskTy:16,  spawnEffect:true, spawnStart:0},
+    reportes:    {x:16,  y:64,  tx:16,  ty:64,  state:'idle', bubble:'', hair:'#2563eb', shirt:'#1e40af', pants:'#1e3a8a', deskTx:16,  deskTy:64,  spawnEffect:true, spawnStart:15},
+    ops:         {x:16,  y:112, tx:16,  ty:112, state:'idle', bubble:'', hair:'#16a34a', shirt:'#166534', pants:'#14532d', deskTx:16,  deskTy:112, spawnEffect:true, spawnStart:30},
+    kb:          {x:176, y:32,  tx:176, ty:32,  state:'idle', bubble:'', hair:'#7c3aed', shirt:'#6b21a8', pants:'#581c87', deskTx:176, deskTy:32,  spawnEffect:true, spawnStart:45},
+    orchestrator:{x:176, y:80,  tx:176, ty:80,  state:'idle', bubble:'', hair:'#818cf8', shirt:'#3730a3', pants:'#312e81', deskTx:176, deskTy:80,  hidden:true, spawnEffect:false, spawnStart:0},
   },
 
   loadSprites() {
-    const promises = [0,1,2,3,4,5].map(i => new Promise(resolve => {
+    // Load character sprites
+    const charPromises = [0,1,2,3,4,5].map(i => new Promise(resolve => {
       const img = new Image();
       img.onload = () => { this.sprites[i] = img; resolve(); };
       img.onerror = () => { this.sprites[i] = null; resolve(); };
-      img.src = `char_${i}.png`;
+      img.src = `assets/characters/char_${i}.png`;
     }));
-    return Promise.all(promises);
+    // Load furniture sprites
+    const furniture = {
+      desk:         'assets/furniture/DESK/DESK_FRONT.png',
+      desk_side:    'assets/furniture/DESK/DESK_SIDE.png',
+      pc_on1:       'assets/furniture/PC/PC_FRONT_ON_1.png',
+      pc_on2:       'assets/furniture/PC/PC_FRONT_ON_2.png',
+      pc_on3:       'assets/furniture/PC/PC_FRONT_ON_3.png',
+      pc_off:       'assets/furniture/PC/PC_FRONT_OFF.png',
+      bookshelf:    'assets/furniture/BOOKSHELF/BOOKSHELF.png',
+      dbl_bookshelf:'assets/furniture/DOUBLE_BOOKSHELF/DOUBLE_BOOKSHELF.png',
+      plant:        'assets/furniture/PLANT/PLANT.png',
+      plant2:       'assets/furniture/PLANT_2/PLANT_2.png',
+      large_plant:  'assets/furniture/LARGE_PLANT/LARGE_PLANT.png',
+      hanging_plant:'assets/furniture/HANGING_PLANT/HANGING_PLANT.png',
+      clock:        'assets/furniture/CLOCK/CLOCK.png',
+      whiteboard:   'assets/furniture/WHITEBOARD/WHITEBOARD.png',
+      sofa_front:   'assets/furniture/SOFA/SOFA_FRONT.png',
+      sofa_back:    'assets/furniture/SOFA/SOFA_BACK.png',
+      sofa_side:    'assets/furniture/SOFA/SOFA_SIDE.png',
+      chair_front:  'assets/furniture/WOODEN_CHAIR/WOODEN_CHAIR_FRONT.png',
+      chair_back:   'assets/furniture/WOODEN_CHAIR/WOODEN_CHAIR_BACK.png',
+      chair_side:   'assets/furniture/WOODEN_CHAIR/WOODEN_CHAIR_SIDE.png',
+      cchair_front: 'assets/furniture/CUSHIONED_CHAIR/CUSHIONED_CHAIR_FRONT.png',
+      bench:        'assets/furniture/CUSHIONED_BENCH/CUSHIONED_BENCH.png',
+      coffee:       'assets/furniture/COFFEE/COFFEE.png',
+      coffee_table: 'assets/furniture/COFFEE_TABLE/COFFEE_TABLE.png',
+      table:        'assets/furniture/SMALL_TABLE/SMALL_TABLE_FRONT.png',
+      table_big:    'assets/furniture/TABLE_FRONT/TABLE_FRONT.png',
+      cactus:       'assets/furniture/CACTUS/CACTUS.png',
+      painting:     'assets/furniture/LARGE_PAINTING/LARGE_PAINTING.png',
+      painting_sm:  'assets/furniture/SMALL_PAINTING/SMALL_PAINTING.png',
+      floor0:       'assets/floors/floor_0.png',
+      floor1:       'assets/floors/floor_1.png',
+      floor2:       'assets/floors/floor_2.png',
+      floor3:       'assets/floors/floor_3.png',
+      floor4:       'assets/floors/floor_4.png',
+      floor5:       'assets/floors/floor_5.png',
+      floor6:       'assets/floors/floor_6.png',
+      floor7:       'assets/floors/floor_7.png',
+      wall0:        'assets/walls/wall_0.png',
+    };
+    const furniturePromises = Object.entries(furniture).map(([key, src]) => new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => { this.sprites['f_'+key] = img; resolve(); };
+      img.onerror = () => { this.sprites['f_'+key] = null; resolve(); };
+      img.src = src;
+    }));
+    return Promise.all([...charPromises, ...furniturePromises]);
   },
 
   init() {
@@ -989,10 +1044,12 @@ const PxGame = {
     if(!el) return;
     if(this.animId) cancelAnimationFrame(this.animId);
     this.canvas = el;
-    this.canvas.width  = this.COLS * this.T;
-    this.canvas.height = this.ROWS * this.T;
+    const Z = this.ZOOM;
+    this.canvas.width  = this.COLS * this.T * Z;
+    this.canvas.height = this.ROWS * this.T * Z;
     this.ctx = el.getContext('2d');
     this.ctx.imageSmoothingEnabled = false;
+    this.ctx.scale(Z, Z); // Apply zoom — everything now in 16px tile coords
     // Load real sprites first, then start loop
     this.loadSprites().then(() => {
       this.spritesLoaded = true;
@@ -1005,7 +1062,7 @@ const PxGame = {
     for(const ag of Object.values(this.agents)) {
       const dx = ag.tx - ag.x, dy = ag.ty - ag.y;
       const dist = Math.hypot(dx, dy);
-      if(dist > 1.5) { ag.x += dx/dist*1.8; ag.y += dy/dist*1.8; ag.moving=true; }
+      if(dist > 0.8) { ag.x += dx/dist*0.9; ag.y += dy/dist*0.9; ag.moving=true; }
       else { ag.x=ag.tx; ag.y=ag.ty; ag.moving=false; }
     }
   },
@@ -1016,99 +1073,226 @@ const PxGame = {
     for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) this.drawTile(c*T,r*T,MAP[r][c]);
     // Wall line at bottom of shelves
     ctx.fillStyle='rgba(0,0,0,0.15)'; ctx.fillRect(0,T,COLS*T,2);
+    // Room divider shadow effect
+    ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(this.T*8,0,2,this.ROWS*this.T);
+    ctx.fillStyle='rgba(0,0,0,0.2)'; ctx.fillRect(this.T*8+2,0,2,this.ROWS*this.T);
+
+    // Room labels
+    ctx.font='bold 3px "JetBrains Mono", monospace'; // 3px * zoom4 = 12px screen
+    ctx.fillStyle='rgba(255,255,255,0.2)';
+    ctx.fillText('OPEN OFFICE', 2, this.ROWS*this.T - 2);
+    ctx.fillText('MEETING ROOM', this.T*10, this.ROWS*this.T - 2);
+
     // Agents (sorted by y for depth)
     const sorted = Object.entries(this.agents).filter(([,a])=>!a.hidden||(a.state!=='idle'||a.x!==240)).sort(([,a],[,b])=>a.y-b.y);
     for(const [id,ag] of sorted) this.drawAgent(id,ag);
   },
 
+  drawSprite(key, x, y, w, h) {
+    const img = this.sprites['f_'+key];
+    if(img && img.complete && img.naturalWidth > 0) {
+      this.ctx.imageSmoothingEnabled = false;
+      this.ctx.drawImage(img, x, y, w || img.naturalWidth*2, h || img.naturalHeight*2);
+      return true;
+    }
+    return false;
+  },
+
+  // Tile a 16x16 floor PNG across a 32x32 tile (2x2 tiling)
+  drawFloor(floorKey, x, y) {
+    const {ctx, T} = this;
+    // Pixel Agents uses tileColors to tint grayscale floor PNGs
+    // We replicate by drawing base color + PNG texture overlay
+    const colors = {
+      floor0: '#b08040', floor1: '#a87838', floor2: '#986830',
+      floor3: '#4a6e8a', floor4: '#486080', floor5: '#506878',
+      floor6: '#404060', floor7: '#303050', floor8: '#585870',
+    };
+    const baseColor = colors[floorKey] || '#8B6340';
+    ctx.fillStyle = baseColor;
+    ctx.fillRect(x, y, T, T);
+    // Draw PNG texture on top for wood grain effect
+    const img = this.sprites['f_'+floorKey];
+    if(img && img.complete && img.naturalWidth > 0) {
+      ctx.imageSmoothingEnabled = false;
+      ctx.globalAlpha = 0.35;
+      ctx.drawImage(img, x, y, T, T);
+      ctx.globalAlpha = 1;
+    }
+    // Subtle grid line for tile separation
+    ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+    ctx.lineWidth = 0.5;
+    ctx.strokeRect(x+0.25, y+0.25, T-0.5, T-0.5);
+  },
+
+  // Draw a furniture sprite at pixel-perfect 2x scale
+  drawFurniture(key, x, y, srcW, srcH, offX, offY) {
+    const {ctx} = this;
+    const img = this.sprites['f_'+key];
+    ctx.imageSmoothingEnabled = false;
+    if(img && img.complete && img.naturalWidth > 0) {
+      const sw = srcW||img.naturalWidth, sh = srcH||img.naturalHeight;
+      ctx.drawImage(img, 0, 0, sw, sh, x+(offX||0), y+(offY||0), sw, sh);
+      return true;
+    }
+    return false;
+  },
+
   drawTile(x,y,type) {
     const {ctx,T} = this;
-    if(type===0) { // DARK FLOOR
-      ctx.fillStyle='#6B4E2E'; ctx.fillRect(x,y,T,T);
-      ctx.fillStyle='#5a3f22'; ctx.fillRect(x,y+10,T,1); ctx.fillRect(x,y+21,T,1);
-      ctx.fillStyle='rgba(0,0,0,0.15)'; ctx.fillRect(x,y,T,T);
-    } else if(type===1) { // SHELF
+    const isWood = (x < this.COLS * T * 0.4);
+
+    if(type===6) { // VERTICAL WALL DIVIDER
+      ctx.fillStyle='#1a1a28'; ctx.fillRect(x,y,T,T);
+      // Wall texture
+      ctx.fillStyle='#222238'; ctx.fillRect(x+1,y,T-2,T);
+      ctx.fillStyle='rgba(255,255,255,0.03)'; ctx.fillRect(x+1,y,1,T);
+      ctx.fillStyle='rgba(0,0,0,0.4)'; ctx.fillRect(x+T-1,y,1,T);
+      return;
+    }
+
+    if(type===7) { // MEETING ROOM WALL SIDE (dark border)
+      this.drawFloor('floor3', x, y);
+      ctx.fillStyle='rgba(0,0,0,0.35)'; ctx.fillRect(x,y,T,T);
+      return;
+    }
+    if(type===11) { // WALL WITH PAINTING
       ctx.fillStyle='#1a1208'; ctx.fillRect(x,y,T,T);
-      // Shelf board wood
-      ctx.fillStyle='#3d2b0e'; ctx.fillRect(x+1,y+4,T-2,T-6);
-      ctx.fillStyle='#4a3515'; ctx.fillRect(x+1,y+4,T-2,3);
-      ctx.fillStyle='#2d1e08'; ctx.fillRect(x+1,y+T-4,T-2,2);
-      // Books
-      const cols=['#dc2626','#2563eb','#16a34a','#d97706','#7c3aed','#0891b2','#be185d','#0d9488'];
-      let bx=x+2; let bi=Math.floor(x/T+y);
-      while(bx<x+T-3) {
-        const bw=3+((bx*3+y*7)%3);
-        ctx.fillStyle=cols[(bi++)%cols.length];
-        ctx.fillRect(bx,y+6,bw,T-12);
-        // Book highlight
-        ctx.fillStyle='rgba(255,255,255,0.15)'; ctx.fillRect(bx,y+6,1,T-12);
-        // Book spine line
-        ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.fillRect(bx+bw,y+6,1,T-12);
-        bx+=bw+1;
+      // painting_sm: 16x16 → 2x = 32x32 centered
+      const pImg = this.sprites['f_painting_sm'];
+      ctx.imageSmoothingEnabled=false;
+      if(pImg && pImg.complete) {
+        ctx.drawImage(pImg, 0,0,16,16, x+(T/2-16), y+(T/2-16), 32,32);
+      } else {
+        ctx.fillStyle='#8B6340'; ctx.fillRect(x+4,y+4,T-8,T-8);
+        ctx.fillStyle='#5a3f22'; ctx.fillRect(x+6,y+6,T-12,T-12);
       }
-    } else if(type===2) { // WOOD FLOOR
-      ctx.fillStyle='#8B6340'; ctx.fillRect(x,y,T,T);
-      // Planks
-      ctx.fillStyle='#7A5530';
-      ctx.fillRect(x,y+10,T,1); ctx.fillRect(x,y+21,T,1);
-      const off=(Math.floor(x/T)%2)*16;
-      ctx.fillRect(x+off,y,1,10); ctx.fillRect(x+off,y+11,1,10); ctx.fillRect(x+off,y+22,1,T-22);
-      // Highlight
-      ctx.fillStyle='rgba(255,255,255,0.04)'; ctx.fillRect(x,y,T,1);
-      // Shadow between planks
-      ctx.fillStyle='rgba(0,0,0,0.08)'; ctx.fillRect(x,y+T-1,T,1);
-    } else if(type===3) { // CARPET
-      ctx.fillStyle='#2d1f4e'; ctx.fillRect(x,y,T,T);
-      ctx.fillStyle='#38266a'; ctx.fillRect(x+2,y+2,T-4,T-4);
-      // Carpet diamond pattern
-      ctx.fillStyle='#4a3580';
-      for(let i=0;i<3;i++) for(let j=0;j<3;j++) { ctx.fillRect(x+5+i*9,y+4+j*9,3,1); ctx.fillRect(x+6+i*9,y+3+j*9,1,3); }
-      ctx.fillStyle='rgba(255,255,255,0.03)'; ctx.fillRect(x,y,T,1);
-    } else if(type===4) { // DESK
-      // Floor under desk
-      const isWood=(x<this.COLS*this.T/2); 
-      ctx.fillStyle=isWood?'#8B6340':'#2d1f4e'; ctx.fillRect(x,y,T,T);
-      if(isWood){ctx.fillStyle='#7A5530';ctx.fillRect(x,y+10,T,1);ctx.fillRect(x,y+21,T,1);}
-      else{ctx.fillStyle='#38266a';ctx.fillRect(x+2,y+2,T-4,T-4);}
-      // Desk top
-      ctx.fillStyle='#7a5c38'; ctx.fillRect(x+1,y+2,T-2,6);
-      ctx.fillStyle='#6B4E2E'; ctx.fillRect(x+1,y+7,T-2,T-14);
-      ctx.fillStyle='#4a3520'; ctx.fillRect(x+1,y+T-7,T-2,5);
-      // Desk legs
-      ctx.fillStyle='#3a2810'; ctx.fillRect(x+2,y+T-5,4,4); ctx.fillRect(x+T-6,y+T-5,4,4);
-      // Monitor base & stand
-      ctx.fillStyle='#2d2d2d'; ctx.fillRect(x+12,y+13,6,4); ctx.fillRect(x+14,y+10,2,4);
-      // Monitor body
-      ctx.fillStyle='#1a1a2e'; ctx.fillRect(x+6,y+4,18,10);
-      ctx.fillStyle='#0a0a1a'; ctx.fillRect(x+7,y+5,16,8);
-      // Screen (glowing blue)
-      ctx.fillStyle='#0f3460'; ctx.fillRect(x+8,y+6,14,6);
-      ctx.fillStyle='#1a5276'; ctx.fillRect(x+9,y+7,10,3);
-      ctx.fillStyle='rgba(100,180,255,0.15)'; ctx.fillRect(x+8,y+6,14,1);
-      // Keyboard
-      ctx.fillStyle='#3d3d3d'; ctx.fillRect(x+7,y+14,12,3);
-      ctx.fillStyle='#4a4a4a'; ctx.fillRect(x+8,y+14,10,2);
-      // Mouse
-      ctx.fillStyle='#3d3d3d'; ctx.fillRect(x+21,y+14,4,3); ctx.fillRect(x+22,y+13,2,1);
-    } else if(type===5) { // PLANT
-      const isWood=(x<this.COLS*this.T/2);
-      ctx.fillStyle=isWood?'#8B6340':'#2d1f4e'; ctx.fillRect(x,y,T,T);
-      // Pot
-      ctx.fillStyle='#7c3520'; ctx.fillRect(x+10,y+18,10,9);
-      ctx.fillStyle='#6b2d1a'; ctx.fillRect(x+9,y+16,12,4);
-      ctx.fillStyle='#501f10'; ctx.fillRect(x+10,y+26,10,1);
-      // Soil
-      ctx.fillStyle='#2d1206'; ctx.fillRect(x+10,y+16,12,3);
-      // Stems
-      ctx.fillStyle='#15803d'; ctx.fillRect(x+14,y+6,3,14); ctx.fillRect(x+10,y+10,4,8); ctx.fillRect(x+18,y+11,4,7);
-      // Leaves
-      ctx.fillStyle='#166534'; ctx.fillRect(x+6,y+4,10,8); ctx.fillRect(x+16,y+6,8,7); ctx.fillRect(x+8,y+10,6,5);
-      ctx.fillStyle='#22c55e'; ctx.fillRect(x+8,y+5,6,4); ctx.fillRect(x+18,y+7,4,4); ctx.fillRect(x+7,y+11,4,3);
-      ctx.fillStyle='#4ade80'; ctx.fillRect(x+10,y+4,3,2); ctx.fillRect(x+19,y+6,2,2);
+      return;
+    }
+
+    // Wood floor (type 0, 2, 4, 5)
+    if(isWood || type===0 || type===2 || type===4 || type===5) {
+      // Alternate floor_0 and floor_1 in checkerboard
+      const alt = ((Math.floor(x/T) + Math.floor(y/T)) % 2 === 0);
+      this.drawFloor(alt ? 'floor0' : 'floor1', x, y);
+    }
+
+    // Carpet (type 3, 8)
+    if(!isWood && (type===3 || type===8)) {
+      this.drawFloor('floor3', x, y);
+    }
+
+    if(type===1 || type===10) { // BOOKSHELF WALL
+      // Dark wall background
+      ctx.fillStyle='#1a1208'; ctx.fillRect(x,y,T,T);
+      if(type===10) { // CLOCK tile
+        // Double bookshelf behind
+        this.drawFurniture('dbl_bookshelf', x, y, 32, 32, 0, 0);
+        // Clock overlay: CLOCK.png is 16x32, draw centered
+        this.drawFurniture('clock', x, y, 16, 32, T/2-16, -8);
+        return;
+      }
+      // BOOKSHELF: 32x16 → draw tiled to fill 32x32
+      const bsImg = this.sprites['f_bookshelf'];
+      if(bsImg && bsImg.complete) {
+        ctx.imageSmoothingEnabled=false;
+        ctx.drawImage(bsImg, 0,0, 32,16, x-T, y, 32, 16);
+      } else {
+        ctx.fillStyle='#3d2b0e'; ctx.fillRect(x+1,y+4,T-2,T-6);
+        const cols=['#dc2626','#2563eb','#16a34a','#d97706','#7c3aed'];
+        let bx=x+2,bi=0;
+        while(bx<x+T-3){const bw=3+(bi%2);ctx.fillStyle=cols[bi%5];ctx.fillRect(bx,y+6,bw,T-12);bx+=bw+1;bi++;}
+      }
+      return;
+    }
+
+    if(type===4) { // DESK — DESK_FRONT 48x32, PC_FRONT_ON 16x32
+      // DESK_FRONT: 48x32 → scale to T×(T*2/3), bottom-aligned in tile
+      const deskImg = this.sprites['f_desk'];
+      ctx.imageSmoothingEnabled = false;
+      if(deskImg && deskImg.complete) {
+        // DESK_FRONT: 48x32 in 16px tile system = 3 tiles wide x 2 tiles tall
+        ctx.drawImage(deskImg, 0,0, 48,32, x-T, y-T, 48, 32);
+      } else {
+        ctx.fillStyle='#8B6340'; ctx.fillRect(x+1,y+T/3,T-2,T*2/3);
+        ctx.fillStyle='#5a3d22'; ctx.fillRect(x+1,y+T-4,T-2,3);
+      }
+      // PC_FRONT_ON: 16x32 → 2x = 32x64, centered on desk, above desk
+      const pcFrame = Math.floor(this.frame/12)%3+1;
+      const pcImg = this.sprites['f_pc_on'+pcFrame] || this.sprites['f_pc_off'];
+      if(pcImg && pcImg.complete) {
+        // PC: 16x32 in 16px tile system = 1 tile wide x 2 tiles tall
+        ctx.drawImage(pcImg, 0,0, 16,32, x, y-T, 16, 32);
+      } else {
+        ctx.fillStyle='#0a2040'; ctx.fillRect(x+6,y,T-12,T/2);
+        ctx.fillStyle='#1a90d0'; ctx.fillRect(x+8,y+2,T-16,T/2-6);
+      }
+      return;
+    }
+
+    if(type===5) { // PLANT
+      // PLANT 16x32 → 2x = 32x64
+      const plantKey = (Math.floor(x/T)+Math.floor(y/T))%2===0 ? 'f_plant' : 'f_plant2';
+      const pImg = this.sprites[plantKey];
+      if(pImg && pImg.complete) {
+        ctx.imageSmoothingEnabled=false;
+        ctx.drawImage(pImg, 0,0, 16,32, x+(T/2-16), y-T, 32, T*2);
+      } else {
+        ctx.fillStyle='#15803d'; ctx.fillRect(x+10,y+2,12,22);
+        ctx.fillStyle='#7c3520'; ctx.fillRect(x+9,y+20,14,8);
+      }
+      return;
+    }
+
+    if(type===8) { // SOFA in meeting room
+      this.drawFloor('floor3', x, y);
+      ctx.imageSmoothingEnabled=false;
+      // SOFA_FRONT: 32x16 → 2x = 64x32, centered
+      const sofaImg = this.sprites['f_sofa_front'];
+      if(sofaImg && sofaImg.complete) {
+        ctx.drawImage(sofaImg, 0,0, 32,16, x-T/2, y+T/4, T*2, T/2+4);
+      } else {
+        ctx.fillStyle='#9B6EAE'; ctx.fillRect(x+1,y+T/3,T-2,T/2);
+        ctx.fillStyle='#7B4E8E'; ctx.fillRect(x+1,y+T*2/3,T-2,T/4);
+        // Cushion highlights
+        ctx.fillStyle='rgba(255,255,255,0.15)'; ctx.fillRect(x+3,y+T/3+2,T/2-4,T/4);
+      }
+      return;
+    }
+
+    if(type===9) { // COFFEE TABLE in meeting room
+      this.drawFloor('floor3', x, y);
+      const ctImg = this.sprites['f_coffee_table'];
+      ctx.imageSmoothingEnabled=false;
+      if(ctImg && ctImg.complete) {
+        // COFFEE_TABLE: 32x32 → 2x = 64x64, centered
+        ctx.drawImage(ctImg, 0,0, 32,32, x-T/2, y-T/2, T*2, T*2);
+      } else {
+        ctx.fillStyle='#6B4E2E'; ctx.fillRect(x+4,y+4,T-8,T-8);
+        ctx.fillStyle='#8B6340'; ctx.fillRect(x+6,y+6,T-12,T-12);
+      }
+      return;
+    }
+    if(type===12) { // WOODEN CHAIR (in front of desk)
+      // Floor under
+      const alt2 = ((Math.floor(x/T)+Math.floor(y/T))%2===0);
+      this.drawFloor(alt2?'floor0':'floor1', x, y);
+      // WOODEN_CHAIR_FRONT: 16x32 → 2x = 32x64
+      const chImg = this.sprites['f_chair_front'];
+      ctx.imageSmoothingEnabled=false;
+      if(chImg && chImg.complete) {
+        ctx.drawImage(chImg, 0,0, 16,32, x, y-T, 16, 32);
+      } else {
+        // Fallback chair
+        ctx.fillStyle='#6B4E2E'; ctx.fillRect(x+8,y+8,T-16,T-10);
+        ctx.fillStyle='#8B6340'; ctx.fillRect(x+6,y+4,T-12,6);
+        ctx.fillStyle='#5a3d22'; ctx.fillRect(x+10,y+T-6,4,6); ctx.fillRect(x+T-14,y+T-6,4,6);
+      }
+      return;
     }
   },
 
-  drawAgent(id, ag) {
+    drawAgent(id, ag) {
     const {ctx, frame:f} = this;
     const px=Math.round(ag.x), py=Math.round(ag.y);
     const {state,moving,hair,shirt,pants} = ag;
@@ -1128,40 +1312,50 @@ const PxGame = {
     const sprite = this.sprites[spriteIdx];
 
     if(sprite && sprite.complete && sprite.naturalWidth > 0) {
-      // --- USE REAL PIXEL AGENTS SPRITE SHEET ---
-      // Sheet is 112x96: 7 cols x 6 rows, each frame 16x16px
+      // Metro City: 112x96 = 7 cols x 6 rows, 16x16px per frame
+      // Row 0: face down | Row 2: face left | Row 4: face right
       const FW = 16, FH = 16;
-      const SCALE = 3; // display at 48x48
-      const displayW = FW * SCALE, displayH = FH * SCALE;
-
-      // Animate frame based on state and time
-      // Row 0: idle/walk down (frames 0-6)
-      // Row 2: walk up, Row 4: walk left, Row 5: walk right
-      let row = 0, col = 0;
+      // At zoom=4 applied to canvas, 1px = 4 screen px
+      // Draw chars at 1x in tile coords — zoom handles scaling
+      const displayW = FW; // 16 tile-pixels = 64 screen pixels
+      const displayH = FH; // 16 tile-pixels = 64 screen pixels
+      const dx = ag.tx - ag.x, dy = ag.ty - ag.y;
+      let row = 0;
       if(ag.moving) {
-        row = 0;
-        col = Math.floor(this.frame / 8) % 4; // walk cycle
-      } else if(typing) {
-        row = 0;
-        col = Math.floor(this.frame / 12) % 2; // subtle type bob
-      } else {
-        row = 0;
-        col = 0; // idle
+        row = (Math.abs(dx) > Math.abs(dy)) ? (dx > 0 ? 4 : 2) : 0;
       }
-
+      const col = ag.moving   ? (Math.floor(this.frame / 5) % 7)
+                : typing      ? (Math.floor(this.frame / 18) % 2)
+                : thinking    ? (Math.floor(this.frame / 25) % 2)
+                : 0;
       const sx = col * FW, sy = row * FH;
-      const bob = typing ? Math.sin(this.frame * 0.4) * 1.5 : Math.sin(this.frame * 0.04) * 1;
-
+      const bob = typing ? Math.sin(this.frame*0.5)*1.2
+                : thinking ? Math.sin(this.frame*0.09)*2.5
+                : Math.sin(this.frame*0.035)*0.7;
+      // Align feet to bottom of tile
+      const offX = (this.T - displayW) / 2; // = 0 since both 16px
+      const offY = -(displayH - this.T); // char is 1 tile, center vertically
       ctx.save();
       ctx.imageSmoothingEnabled = false;
       // Shadow
-      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.fillStyle = 'rgba(0,0,0,0.28)';
       ctx.beginPath();
-      ctx.ellipse(px + displayW/2, py + displayH + 2, displayW/3, 3, 0, 0, Math.PI*2);
+      ctx.ellipse(px+this.T/2, py+this.T-2, displayW/3.5, 3.5, 0, 0, Math.PI*2);
       ctx.fill();
-      // Draw sprite frame
-      if(thinking) ctx.globalAlpha = 0.85 + Math.sin(this.frame*0.1)*0.15;
-      ctx.drawImage(sprite, sx, sy, FW, FH, px, py + bob, displayW, displayH);
+      // Matrix spawn
+      if(ag.spawnEffect) {
+        const prog = Math.min(1, (this.frame - ag.spawnStart) / 20);
+        if(prog < 1) {
+          for(let c2=0;c2<4;c2++){
+            const cx2=px+offX+c2*(displayW/4);
+            ctx.fillStyle='rgba(0,255,65,'+(0.7-prog*0.5)+')';
+            ctx.fillRect(cx2, py+offY+prog*displayH, displayW/4-1, 4);
+          }
+          ctx.globalAlpha = Math.pow(prog, 0.4);
+        } else { ag.spawnEffect = false; }
+      }
+      if(thinking) ctx.globalAlpha = Math.min(ctx.globalAlpha||1, 0.88+Math.sin(this.frame*0.1)*0.12);
+      ctx.drawImage(sprite, sx, sy, FW, FH, px+offX, py+offY+bob, displayW, displayH);
       ctx.globalAlpha = 1;
       ctx.restore();
     } else {
@@ -1220,9 +1414,13 @@ const PxGame = {
     const labels={contenido:'Contenido',reportes:'Reportes',ops:'Ops',kb:'KB',orchestrator:'Orquestador'};
     const colors={contenido:'#f59e0b',reportes:'#60a5fa',ops:'#4ade80',kb:'#c084fc',orchestrator:'#818cf8'};
     if(labels[id]) {
-      const labelY = (sprite && sprite.complete && sprite.naturalWidth > 0) ? py + 52 : py + 28;
-      ctx.fillStyle=colors[id]||'#aaa'; ctx.font='bold 8px monospace';
-      ctx.textAlign='center'; ctx.fillText(labels[id],px+24,labelY); ctx.textAlign='left';
+      const charH = (sprite && sprite.complete && sprite.naturalWidth > 0) ? 16 : 12;
+      const labelY = py + charH + 3;
+      // Label shadow
+      ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.font='bold 3px monospace';
+      ctx.textAlign='center'; ctx.fillText(labels[id],px+this.T/2+1,labelY+1);
+      ctx.fillStyle=colors[id]||'#aaa';
+      ctx.fillText(labels[id],px+this.T/2,labelY); ctx.textAlign='left';
     }
   },
 

@@ -247,7 +247,7 @@ hr.div{border:none;border-top:1px solid var(--border);margin:16px 0;}
 .pixel-office-sub{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim);}
 .px-room-label{position:absolute;font-family:'JetBrains Mono',monospace;font-size:8px;color:rgba(255,255,255,0.3);pointer-events:none;letter-spacing:.05em;}
 #px-canvas{width:100% !important;height:auto !important;display:block;border-radius:8px;image-rendering:pixelated;image-rendering:crisp-edges;}
-.pixel-office{position:relative;width:100%;height:896px;background:#0e0e1a;border-radius:8px;overflow:hidden;image-rendering:pixelated;}
+.pixel-office{position:relative;width:100%;height:960px;background:#0e0e1a;border-radius:8px;overflow:hidden;image-rendering:pixelated;}
 .px-floor{position:absolute;inset:0;background:repeating-linear-gradient(90deg,#1e1408 0px,#1e1408 16px,#221608 16px,#221608 32px),repeating-linear-gradient(180deg,#1e1408 0px,#1e1408 16px,#221608 16px,#221608 32px);background-blend-mode:multiply;}
 .px-wall{position:absolute;top:0;left:0;right:0;height:40px;background:#0e0e1a;border-bottom:2px solid #1a1a2e;}
 .px-wall::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:#2a2a4a;}
@@ -953,18 +953,19 @@ function setMission(text) {
 // ============================================================
 const PxGame = {
   canvas: null, ctx: null, animId: null, frame: 0,
-  T: 16, ZOOM: 4, COLS: 26, ROWS: 14,
+  T: 16, ZOOM: 4, COLS: 26, ROWS: 15,
   sprites: {},
   spritesLoaded: false,
 
   // Tile types: 0=darkfloor 1=shelf 2=woodfloor 3=carpet 4=desk 5=plant 6=wall_v 7=lightfloor 8=meeting_desk 9=vending 10=clock_wall
   MAP: [
+    [1,1,1, 1,1,1,1,1,6,6,6,6,6,6,6,6,6,6,6,1,1,1, 1,1,1,1],
     [1,1,10,1,1,1,1,1,6,6,6,6,6,6,6,6,6,6,6,1,1,11,1,1,1,1],
     [2,4, 4,2,2,5,2,4,6,3,3,3,3,3,3,3,3,3,3,6,3, 3,3,3,5,7],
-    [2,12,12,2,2,2,2,12,6,3,13,13,13,13,13,3,3,3,3,6,3,3,3,3,3,7],
-    [2,2, 2,2,5,2,2,2,6,3,12,3, 3, 3,12,3,3,3,3,6,5,3,3,3,3,7],
-    [2,4, 4,2,2,2,2,4,6,3,3, 3, 9, 3,3, 3,3,3,3,6,3,3,3,3,3,7],
-    [2,12,12,2,2,5,2,12,6,3,12,3, 3, 3,12,3,5,3,3,6,3,3,5,3,3,7],
+    [2,12,12,2,2,2,2,12,6,3,8, 13,13,13,8, 3,3,3,3,6,3,3,3,3,3,7],
+    [2,2, 2,2,5,2,2,2,6,3,12,13,13,13,12,3,3,3,3,6,5,3,3,3,3,7],
+    [2,4, 4,2,2,2,2,4,6,3,3, 13,9, 13,3, 3,3,3,3,6,3,3,3,3,3,7],
+    [2,12,12,2,2,5,2,12,6,3,12,13,13,13,12,3,5,3,3,6,3,3,5,3,3,7],
     [2,2, 2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,6,3,3,3,3,3,7],
     [2,4, 4,2,5,2,2,4,6,3,3,3,3,3,3,3,3,3,3,6,3,3,3,3,3,7],
     [2,12,12,2,2,2,2,12,6,3,13,13,13,13,13,3,3,3,3,6,3,3,3,3,5,7],
@@ -978,11 +979,11 @@ const PxGame = {
   CHAR_IDX: { contenido:0, reportes:2, ops:3, kb:1, orchestrator:4 },
 
   agents: {
-    contenido:   {x:16,  y:16,  tx:16,  ty:16,  state:'idle', bubble:'', hair:'#d97706', shirt:'#92400e', pants:'#451a03', deskTx:16,  deskTy:16,  spawnEffect:true, spawnStart:0},
-    reportes:    {x:16,  y:80,  tx:16,  ty:80,  state:'idle', bubble:'', hair:'#2563eb', shirt:'#1e40af', pants:'#1e3a8a', deskTx:16,  deskTy:80,  spawnEffect:true, spawnStart:15},
-    ops:         {x:16,  y:144, tx:16,  ty:144, state:'idle', bubble:'', hair:'#16a34a', shirt:'#166534', pants:'#14532d', deskTx:16,  deskTy:144, spawnEffect:true, spawnStart:30},
-    kb:          {x:192, y:32,  tx:192, ty:32,  state:'idle', bubble:'', hair:'#7c3aed', shirt:'#6b21a8', pants:'#581c87', deskTx:192, deskTy:32,  spawnEffect:true, spawnStart:45},
-    orchestrator:{x:192, y:112, tx:192, ty:112, state:'idle', bubble:'', hair:'#818cf8', shirt:'#3730a3', pants:'#312e81', deskTx:192, deskTy:112, hidden:true, spawnEffect:false, spawnStart:0},
+    contenido:   {x:16,  y:32,  tx:16,  ty:32,  state:'idle', bubble:'', hair:'#d97706', shirt:'#92400e', pants:'#451a03', deskTx:16,  deskTy:32,  spawnEffect:true, spawnStart:0},
+    reportes:    {x:16,  y:96,  tx:16,  ty:96,  state:'idle', bubble:'', hair:'#2563eb', shirt:'#1e40af', pants:'#1e3a8a', deskTx:16,  deskTy:96,  spawnEffect:true, spawnStart:15},
+    ops:         {x:16,  y:160, tx:16,  ty:160, state:'idle', bubble:'', hair:'#16a34a', shirt:'#166534', pants:'#14532d', deskTx:16,  deskTy:160, spawnEffect:true, spawnStart:30},
+    kb:          {x:192, y:48,  tx:192, ty:48,  state:'idle', bubble:'', hair:'#7c3aed', shirt:'#6b21a8', pants:'#581c87', deskTx:192, deskTy:48,  spawnEffect:true, spawnStart:45},
+    orchestrator:{x:192, y:128, tx:192, ty:128, state:'idle', bubble:'', hair:'#818cf8', shirt:'#3730a3', pants:'#312e81', deskTx:192, deskTy:128, hidden:true, spawnEffect:false, spawnStart:0},
   },
 
   loadSprites() {
@@ -1265,10 +1266,11 @@ const PxGame = {
       if(sofaImg && sofaImg.complete) {
         ctx.drawImage(sofaImg, 0,0, 32,16, x-T/2, y+T/4, T*2, T/2+4);
       } else {
-        ctx.fillStyle='#9B6EAE'; ctx.fillRect(x+1,y+T/3,T-2,T/2);
-        ctx.fillStyle='#7B4E8E'; ctx.fillRect(x+1,y+T*2/3,T-2,T/4);
+        ctx.fillStyle='#C25B5B'; ctx.fillRect(x+1,y+T/3,T-2,T/2);
+        ctx.fillStyle='#A03C3C'; ctx.fillRect(x+1,y+T*2/3,T-2,T/4);
         // Cushion highlights
-        ctx.fillStyle='rgba(255,255,255,0.15)'; ctx.fillRect(x+3,y+T/3+2,T/2-4,T/4);
+        ctx.fillStyle='rgba(255,255,255,0.2)'; ctx.fillRect(x+3,y+T/3+2,T/2-4,T/4);
+        ctx.fillStyle='rgba(255,255,255,0.1)'; ctx.fillRect(x+T/2+1,y+T/3+2,T/2-5,T/4);
       }
       return;
     }
@@ -1286,17 +1288,25 @@ const PxGame = {
       }
       return;
     }
-    if(type===13) { // CONFERENCE TABLE
+    if(type===13) { // CONFERENCE TABLE - beautiful dark wood
       this.drawFloor('floor5', x, y);
       ctx.imageSmoothingEnabled=false;
-      // Draw conference table top
-      const tImg = this.sprites['f_table_big'];
-      if(tImg && tImg.complete) {
-        ctx.drawImage(tImg, 0,0, 16,16, x, y, this.T, this.T);
-      } else {
-        ctx.fillStyle='#8B6340'; ctx.fillRect(x+1,y+2,this.T-2,this.T-4);
-        ctx.fillStyle='#6B4320'; ctx.fillRect(x+1,y+this.T-5,this.T-2,3);
-        ctx.fillStyle='rgba(255,255,255,0.1)'; ctx.fillRect(x+2,y+3,this.T-4,2);
+      // Rich dark wood conference table
+      ctx.fillStyle='#5C3D1E'; ctx.fillRect(x,y+2,this.T,this.T-4);
+      ctx.fillStyle='#7B5230'; ctx.fillRect(x+1,y+3,this.T-2,this.T-8);
+      // Wood grain lines
+      ctx.fillStyle='rgba(255,255,255,0.06)';
+      ctx.fillRect(x+2,y+4,1,this.T-10);
+      ctx.fillRect(x+6,y+4,1,this.T-10);
+      ctx.fillRect(x+10,y+4,1,this.T-10);
+      ctx.fillRect(x+14,y+4,1,this.T-10);
+      // Top highlight
+      ctx.fillStyle='rgba(255,255,255,0.12)'; ctx.fillRect(x+1,y+3,this.T-2,1);
+      // Bottom shadow
+      ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.fillRect(x+1,y+this.T-5,this.T-2,2);
+      // Laptop/notepad on table (subtle)
+      if((Math.floor(x/this.T)+Math.floor(y/this.T))%3===0) {
+        ctx.fillStyle='rgba(200,200,220,0.2)'; ctx.fillRect(x+3,y+4,this.T/2-2,this.T-10);
       }
       return;
     }

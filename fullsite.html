@@ -329,6 +329,7 @@ hr.div{border:none;border-top:1px solid var(--border);margin:16px 0;}
       <button class="ni" onclick="openAgent('reportes')">· Reportes</button>
       <button class="ni" onclick="openAgent('ops')">· Ops</button>
       <button class="ni" onclick="openAgent('kb')">· AMALAY KB</button>
+      <button class="ni" onclick="openAgent('wansoft')">· Wansoft</button>
     </nav>
     <!-- Main -->
     <main class="main">
@@ -810,7 +811,7 @@ async function getWansoftData() {
 }
 
 async function buildSystemPrompt(agentId, taskText='') {
-  const wansoftCtx = agentId === 'reportes' || agentId === 'orchestrator' ? await getWansoftData() : '';
+  const wansoftCtx = agentId === 'reportes' || agentId === 'orchestrator' || agentId === 'wansoft' ? await getWansoftData() : '';
   const clients = getClients();
   const tasks = getTasks();
   const activeClients = clients.filter(c=>c.status==='active');
@@ -830,6 +831,7 @@ async function buildSystemPrompt(agentId, taskText='') {
     contenido: `\n\nTU ROL — AGENTE DE CONTENIDO:\nGeneras posts para GBP, respuestas a reseñas de Google, ideas para reels, copies para anuncios. Cuando generes contenido, dalo listo para copiar/pegar.\n\nNEGOCIO: AMALAY Coffee & Market | Plaza Duendes, San Pedro Garza García | cafeamalay.com\nHORARIOS: Lun-Mié 8am-8pm | Jue-Sáb 8am-11pm | Dom 8am-5pm\nATRIBUTOS: terraza/rooftop, pet-friendly, vegano/vegetariano, brunch, cocteles, estacionamiento gratuito, mujeres emprendedoras\nSTAFF: Oscar, Omar, Héctor | QUEJAS WhatsApp: 81 8254 3303\n\nREGLAS SEO OBLIGATORIAS PARA RESPUESTAS A RESEÑAS:\n1. SIEMPRE incluir \"AMALAY Coffee & Market\" al menos 1 vez.\n2. SIEMPRE incluir al menos 1 keyword: \"brunch San Pedro Garza García\", \"Plaza Duendes\", \"terraza\", \"desayuno Monterrey\", \"San Pedro Garza García\".\n3. Longitud ideal: 60-120 palabras.\n4. RESEÑA POSITIVA: saludo por nombre → agradecimiento específico a lo mencionado (plato, staff, ambiente) → keyword SEO integrada naturalmente → invitación a regresar con atributo único → firma: \"¡Te esperamos pronto! — Equipo AMALAY\"\n5. RESEÑA NEGATIVA: saludo empático → reconocimiento directo sin excusas → \"Contáctanos al WhatsApp 81 8254 3303\" → keyword SEO → compromiso de mejora.\n6. NUNCA respuestas genéricas. Referenciar siempre algo específico de la reseña.\n7. Si mencionan plato/bebida → inclúyelo. Si mencionan empleado → elógialo por nombre.\n8. Tono: cálido, auténtico, regio, premium sin ser pretencioso. Voz de Monica, la dueña.\n\nEJEMPLO POSITIVO: \"¡Hola [Nombre]! 🌟 Gracias por compartir tu experiencia. Nos alegra que hayas disfrutado [lo mencionado] en nuestra terraza de AMALAY Coffee & Market en Plaza Duendes. ¡Eres parte de lo que nos motiva a ser el lugar favorito de brunch en San Pedro Garza García! ¡Te esperamos pronto! — Equipo AMALAY ☕\"\n\nEJEMPLO NEGATIVO: \"Hola [Nombre], gracias por escribirnos. Lamentamos que tu visita a AMALAY Coffee & Market no haya sido la esperada. Por favor contáctanos al WhatsApp 81 8254 3303 para atenderte personalmente. Trabajamos cada día para mejorar en Plaza Duendes. — Equipo AMALAY\"`,
     reportes: `\n\nTU ROL — AGENTE DE REPORTES:\nAnalizas métricas, identificas problemas y das recomendaciones concretas. Issue crítico actual: Asset group "Pal Norte 2026" en Google Ads marcado "Limited by policy" por imágenes con alcohol (festival terminó Mar 27-29, 2026). Sé analítico y da pasos accionables.`,
     ops: `\n\nTU ROL — AGENTE DE OPERACIONES:\nGestionas prioridades, creas SOPs, defines próximos pasos, haces checklists. Ayudas a organizar el trabajo del día/semana. Sé muy práctico y organizado.`,
+    wansoft: `\n\nTU ROL — AGENTE WANSOFT:\nEres el analista de operaciones de AMALAY en tiempo real. Tienes datos directos del sistema POS Wansoft. NUNCA inventes números — usa solo los datos del contexto. Calcula métricas: ticket promedio, ritmo de ventas, proyección del día. Da alertas si algo está fuera de lo normal.`,
     kb: `\n\nTU ROL — BASE DE CONOCIMIENTO:\nRespondes cualquier pregunta sobre los clientes con información precisa. Si no tienes el dato, dilo claramente. Eres la fuente de verdad sobre la agencia y sus clientes.`
   };
 

@@ -794,7 +794,23 @@ const AGENT_DEFS = {
   kb:        { name:'AMALAY KB', role:'Base de conocimiento',       dot:'on' }
 };
 
+async function getWansoftData() {
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/wansoft_kpis?id=eq.amalay&select=*`, { headers: SB_H });
+    const d = await r.json();
+    if(!d.length) return '';
+    const w = d[0];
+    const age = Math.round((Date.now() - new Date(w.updated_at)) / 60000);
+    return `\n\nDATA EN TIEMPO REAL — AMALAY (Wansoft, hace ${age} min):\n` +
+      `• Órdenes abiertas: ${w.ordenes_abiertas} | Total: $${w.total_ordenes_mxn?.toLocaleString()} MXN\n` +
+      `• Última venta: ${w.ultima_venta}\n` +
+      `• Facturas: ${w.facturas} | Devoluciones: ${w.devoluciones} | Órdenes de compra: ${w.ordenes_compra}\n` +
+      `Usa estos números reales en tu análisis.`;
+  } catch(e) { return ''; }
+}
+
 async function buildSystemPrompt(agentId, taskText='') {
+  const wansoftCtx = agentId === 'reportes' || agentId === 'orchestrator' ? await getWansoftData() : '';
   const clients = getClients();
   const tasks = getTasks();
   const activeClients = clients.filter(c=>c.status==='active');
@@ -818,7 +834,7 @@ async function buildSystemPrompt(agentId, taskText='') {
   };
 
   const learningsPrompt = await getLearningsPromptSB(agentId, taskText);
-  return base + (specific[agentId] || '') + learningsPrompt;
+  return base + (specific[agentId] || '') + learningsPrompt + wansoftCtx;
 }
 
 // Chat history per agent (in memory + localStorage)

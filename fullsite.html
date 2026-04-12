@@ -1599,7 +1599,7 @@ const PxGame = {
       ag.tx=ag.deskTx; ag.ty=ag.deskTy;
       if(id==='orchestrator') ag.hidden=false;
     } else {
-      ag.tx=ag.deskTx; ag.ty=ag.deskTy+64;
+      ag.tx=ag.deskTx; ag.ty=ag.deskTy;
       if(id==='orchestrator') { ag.tx=320; ag.ty=180; setTimeout(()=>{ if(ag.state==='idle') ag.hidden=true; },1500); }
     }
     // Update status bar
@@ -1615,7 +1615,7 @@ const PxGame = {
   allIdle() {
     for(const [id,ag] of Object.entries(this.agents)) {
       ag.state='idle'; ag.bubble='';
-      ag.tx=ag.deskTx; ag.ty=ag.deskTy+64;
+      ag.tx=ag.deskTx; ag.ty=ag.deskTy;
       if(id==='orchestrator'){ag.hidden=true;ag.tx=320;ag.ty=180;}
       const st=document.getElementById('pxst-'+id);
       if(st){st.className='px-agent-st';st.innerHTML=`<span class="dot dot-idle"></span>${id}: idle`;}

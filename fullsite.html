@@ -458,6 +458,7 @@ hr.div{border:none;border-top:1px solid var(--border);margin:16px 0;}
   <div class="modal">
     <div class="modal-h">Ajustes</div>
     <div class="field"><label>API Key de Groq (gratis · console.groq.com)</label><input id="s-key" type="password" placeholder="gsk_..."></div>
+    <div class="field"><label>Telegram Chat ID (para alertas de agentes)</label><input id="s-tgid" type="text" placeholder="-100123456789 o tu user ID"></div>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeModal('settings')">Cerrar</button>
       <button class="btn-save" onclick="updateKey()">Guardar clave</button>
@@ -2382,7 +2383,10 @@ async function saveContent() {
 
 function updateKey() {
   const key = document.getElementById('s-key').value.trim();
-  if(key) { LS.set('apikey', key); closeModal('settings'); }
+  if(key) LS.set('apikey', key);
+  const tgid = document.getElementById('s-tgid').value.trim();
+  if(tgid) LS.set('tg_chat_id', tgid);
+  closeModal('settings');
 }
 
 function resetAll() {
@@ -2436,7 +2440,7 @@ async function boot() {
 
   // 🤖 AUTONOMOUS MODE - agents work without being asked
   setTimeout(() => autonomousLoop(), 6000);            // first cycle in 6s
-  setInterval(() => autonomousLoop(), 3 * 60 * 1000); // then every 3 min
+  setInterval(() => autonomousLoop(), 15 * 60 * 1000); // then every 15 min
 }
 
 // ============================================================
@@ -2472,10 +2476,13 @@ Dame: estado del equipo hoy + 1 decisión táctica concreta. Máx 3 oraciones.`
   },
   contenido: {
     icon: '✍️', label: 'Creando contenido',
-    getPrompt: () => `Eres el agente de Contenido de AMALAY Coffee & Market.
-Contexto del orquestador: ${sharedBrain.orchestrator?.substring(0,200) || 'iniciando'}
-Genera HOY: 1 caption listo para Instagram de AMALAY (voz de Monica: cálida, local, auténtica).
-Incluye emojis, hashtags reales. Máx 150 palabras.`
+    getPrompt: () => `Eres el agente de Contenido de AMALAY Coffee & Market. Voz: cálida, local, auténtica (Monica).
+Contexto: ${sharedBrain.orchestrator?.substring(0,200) || 'iniciando'}
+
+Genera 1 caption para Instagram de AMALAY con emojis y hashtags reales.
+
+Responde SOLO con este JSON sin backticks:
+{"caption":"texto del caption aquí con emojis y hashtags","platform":"instagram","status":"draft","client":"AMALAY"}`
   },
   reportes: {
     icon: '📊', label: 'Analizando métricas',
@@ -2486,10 +2493,12 @@ Dame: 1 insight accionable de la campaña + solución al flag. Máx 3 oraciones.
   },
   ops: {
     icon: '⚙️', label: 'Revisando operaciones',
-    getPrompt: () => `Eres el agente de Operaciones de AMALAY.
+    getPrompt: () => `Eres el agente de Operaciones de AMALAY Coffee & Market.
 Contexto de Reportes: ${sharedBrain.reportes?.substring(0,200) || 'iniciando'}
-Lista las TOP 3 tareas operativas urgentes de AMALAY para HOY.
-Formato: Tarea | Responsable | Plazo. Sin explicaciones largas.`
+Genera las TOP 3 tareas operativas urgentes para HOY.
+
+Responde SOLO con este JSON sin backticks ni explicación:
+{"tasks":[{"title":"tarea concreta","priority":"alta","client":"AMALAY"},{"title":"tarea 2","priority":"media","client":"AMALAY"},{"title":"tarea 3","priority":"baja","client":"AMALAY"}],"summary":"1 oración del estado operativo de hoy"}`
   },
   kb: {
     icon: '📚', label: 'Actualizando knowledge',
@@ -2544,10 +2553,16 @@ async function runSingleAgent(agentId) {
   try {
     const result = await callAgentAPI(agentId, agent.getPrompt());
     if(result) {
-      sharedBrain[agentId] = result; // Share with other agents
-      showAgentBubble(agentId, agent.icon, result);
-      // Save to memory
-      try { await saveMemory(agentId, result, 'episodic', 'autonomous_cycle'); } catch(e) {}
+      sharedBrain[agentId] = result;
+      // For structured agents, show readable version in bubble
+      let displayText = result;
+      if(agentId === 'ops') {
+        try { const p=JSON.parse(result.replace(/```json|```/g,'').trim()); displayText = p.summary || result; } catch(e){}
+      } else if(agentId === 'contenido') {
+        try { const p=JSON.parse(result.replace(/```json|```/g,'').trim()); displayText = p.caption || result; } catch(e){}
+      }
+      showAgentBubble(agentId, agent.icon, displayText);
+      try { await saveMemory(agentId, displayText, 'episodic', 'autonomous_cycle'); } catch(e) {}
     }
   } catch(e) { console.error(agentId, e); }
 
@@ -2556,37 +2571,142 @@ async function runSingleAgent(agentId) {
   agentRunning[agentId] = false;
 }
 
+
+// ============================================================
+// 🤖 AGENT ACTIONS — Ejecutan tareas reales
+// ============================================================
+const TG_TOKEN = '8682054788:AAHhqWN59aTDnc_QREC-RqwgNGNkMqbTafs';
+
+async function sendTelegram(message) {
+  const chatId = LS.get('tg_chat_id');
+  if(!chatId) return; // Sin chat_id configurado, no enviar
+  try {
+    await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: message,
+        parse_mode: 'Markdown'
+      })
+    });
+  } catch(e) { console.error('Telegram error:', e); }
+}
+
+async function createAgentTask(title, priority='media', client='AMALAY') {
+  // Check duplicates — no crear si ya existe tarea con mismo título hoy
+  const today = new Date().toLocaleDateString('es-MX',{day:'numeric',month:'short'});
+  const exists = _tasks.find(t => t.title === title && t.status !== 'done');
+  if(exists) return null;
+  const data = { title, client, status: 'pending', due: today };
+  try {
+    const result = await sbInsert('tasks', data);
+    if(Array.isArray(result)) _tasks.push(...result);
+    return result;
+  } catch(e) { return null; }
+}
+
+async function saveContentDraft(caption, platform='instagram', client='AMALAY') {
+  // Check duplicates
+  const exists = _content.find(c => c.title === caption.slice(0,60) && c.status === 'draft');
+  if(exists) return null;
+  const data = {
+    title: caption.slice(0,60),
+    client,
+    platform,
+    status: 'draft',
+    date: null
+  };
+  try {
+    const result = await sbInsert('content', data);
+    if(Array.isArray(result)) _content.push(...result);
+    return result;
+  } catch(e) { return null; }
+}
+
+async function executeAgentActions() {
+  const alerts = [];
+  let tasksCreated = 0;
+  let draftsCreated = 0;
+
+  // --- OPS: crear tareas en Kanban ---
+  if(sharedBrain.ops) {
+    try {
+      const raw = sharedBrain.ops.replace(/```json|```/g,'').trim();
+      const parsed = JSON.parse(raw);
+      if(parsed.tasks && Array.isArray(parsed.tasks)) {
+        for(const t of parsed.tasks) {
+          if(t.title) {
+            const r = await createAgentTask(t.title, t.priority||'media', t.client||'AMALAY');
+            if(r) {
+              tasksCreated++;
+              if(t.priority === 'alta') alerts.push(`🔴 *URGENTE:* ${t.title}`);
+            }
+          }
+        }
+        if(tasksCreated > 0 && currentTab === 'tasks') renderTab('tasks');
+      }
+    } catch(e) { /* ops no devolvió JSON válido */ }
+  }
+
+  // --- CONTENIDO: guardar draft ---
+  if(sharedBrain.contenido) {
+    try {
+      const raw = sharedBrain.contenido.replace(/```json|```/g,'').trim();
+      const parsed = JSON.parse(raw);
+      if(parsed.caption) {
+        const r = await saveContentDraft(parsed.caption, parsed.platform||'instagram');
+        if(r) {
+          draftsCreated++;
+          if(currentTab === 'content') renderTab('content');
+        }
+      }
+    } catch(e) { /* contenido no devolvió JSON válido */ }
+  }
+
+  // --- TELEGRAM: alertas consolidadas ---
+  const chatId = LS.get('tg_chat_id');
+  if(chatId) {
+    const now = new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+    let msg = `🤖 *War Room AMALAY* — ${now}\n`;
+    if(tasksCreated > 0) msg += `\n✅ ${tasksCreated} tarea(s) creada(s) en Kanban`;
+    if(draftsCreated > 0) msg += `\n✍️ ${draftsCreated} draft de contenido guardado`;
+    if(alerts.length > 0) msg += '\n\n' + alerts.join('\n');
+    if(sharedBrain.orchestrator) msg += `\n\n🧠 *Orquestador:* ${sharedBrain.orchestrator.slice(0,200)}`;
+    if(tasksCreated > 0 || draftsCreated > 0 || alerts.length > 0) {
+      await sendTelegram(msg);
+    }
+  }
+
+  // Notif en pantalla
+  if(tasksCreated > 0 || draftsCreated > 0) {
+    showNotif(`🤖 Agentes: ${tasksCreated} tarea(s) + ${draftsCreated} draft(s) creados`, '#4ade80');
+  }
+}
+
 async function autonomousLoop() {
   if(!LS.get('apikey')) return;
   sharedBrain.lastCycle = new Date().toISOString();
+  const delay = ms => new Promise(r => setTimeout(r, ms));
 
-  // Phase 1: Reportes + Ops run first (no dependencies)
-  updateCycleIndicator('🔄 Fase 1: Reportes + Ops');
-  await Promise.all([
-    runSingleAgent('reportes'),
-    runSingleAgent('ops')
-  ]);
+  // Secuencial con 4s entre agentes — evita rate limit Groq
+  const sequence = ['reportes','ops','orchestrator','contenido','kb'];
+  for(let i=0; i<sequence.length; i++) {
+    const id = sequence[i];
+    updateCycleIndicator(`🔄 ${i+1}/5 — Agente: ${id}`);
+    await runSingleAgent(id);
+    if(i < sequence.length-1) await delay(4000); // 4s entre agentes
+  }
 
-  // Phase 2: Orchestrator + Contenido read from Phase 1
-  await new Promise(r => setTimeout(r, 1000));
-  updateCycleIndicator('🔄 Fase 2: Orquestador + Contenido');
-  await Promise.all([
-    runSingleAgent('orchestrator'),
-    runSingleAgent('contenido')
-  ]);
+  // Ejecutar acciones reales basadas en lo que generaron los agentes
+  await executeAgentActions();
 
-  // Phase 3: KB synthesizes everything
-  await new Promise(r => setTimeout(r, 500));
-  updateCycleIndicator('🧠 Fase 3: KB sintetizando');
-  await runSingleAgent('kb');
-
-  // If KB says save something, do it
   if(sharedBrain.kb?.toLowerCase().includes('sí') || sharedBrain.kb?.toLowerCase().includes('si ')) {
     try { await saveMemory('kb', sharedBrain.kb, 'semantic', 'kb_synthesis'); } catch(e) {}
   }
 
-  updateCycleIndicator('✅ Ciclo completo — próximo en 3 min');
-  setTimeout(() => updateCycleIndicator(''), 4000);
+  updateCycleIndicator('✅ Ciclo completo — próximo en 15 min');
+  setTimeout(() => updateCycleIndicator(''), 5000);
 }
 
 function updateCycleIndicator(msg) {

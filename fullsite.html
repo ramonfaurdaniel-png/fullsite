@@ -330,9 +330,9 @@ hr.div{border:none;border-top:1px solid var(--border);margin:16px 0;}
     <div class="setup-logo">Full<em>site</em></div>
     <div class="setup-sub">war room · agencia digital</div>
     <label class="setup-label">Clave API de Anthropic (Claude)</label>
-    <input class="setup-input" type="password" id="setup-key" placeholder="sk-ant-api03-..." autocomplete="off">
+    <input class="setup-input" type="password" id="setup-key" placeholder="gsk_..." autocomplete="off">
     <button class="setup-btn" onclick="saveKey()">Entrar al War Room →</button>
-    <div class="setup-note">Tu clave se guarda solo en este navegador.<br>Consíguela en console.anthropic.com</div>
+    <div class="setup-note">Tu clave se guarda solo en este navegador.<br>Consíguela GRATIS en console.groq.com</div>
   </div>
 </div>
 
@@ -457,7 +457,7 @@ hr.div{border:none;border-top:1px solid var(--border);margin:16px 0;}
 <div class="overlay" id="overlay-settings" onclick="if(event.target===this)closeModal('settings')">
   <div class="modal">
     <div class="modal-h">Ajustes</div>
-    <div class="field"><label>API Key de Anthropic</label><input id="s-key" type="password" placeholder="sk-ant-..."></div>
+    <div class="field"><label>API Key de Groq (gratis · console.groq.com)</label><input id="s-key" type="password" placeholder="gsk_..."></div>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeModal('settings')">Cerrar</button>
       <button class="btn-save" onclick="updateKey()">Guardar clave</button>
@@ -626,13 +626,7 @@ El aprendizaje debe ser una instrucción accionable en máx 150 caracteres.
 Responde SOLO con este JSON, sin backticks:
 {"learnings":[{"agent":"contenido","content":"instrucción específica","sector":"semantic","keywords":"kw1,kw2,kw3"}]}`;
 
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 600, messages: [{ role: 'user', content: extractPrompt }] })
-    });
-    const data = await res.json();
-    const raw = (data.content?.[0]?.text || '').replace(/```json|```/g, '').trim();
+    const raw = ((await groqCall(null, [{ role: 'user', content: extractPrompt }], 600)) || '').replace(/```json|```/g, '').trim();
     let parsed;
     try { parsed = JSON.parse(raw); } catch { return; }
     
@@ -721,13 +715,7 @@ async function extractChatLearning(agentId, userMsg, agentReply) {
     const apiKey = LS.get('apikey');
     if(!apiKey) return;
     const prompt = 'Extrae 1 aprendizaje concreto de este intercambio para que el agente ' + agentId + ' mejore en el futuro.\n\nUSUARIO: ' + userMsg.slice(0,150) + '\n\nAGENTE: ' + agentReply.slice(0,300) + '\n\nResponde SOLO con este JSON sin backticks:\n{"learning":"instrucción específica en máx 120 chars","sector":"semantic o episodic"}';
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:200, messages:[{role:'user',content:prompt}] })
-    });
-    const data = await res.json();
-    const raw = (data.content?.[0]?.text||'').replace(/```json|```/g,'').trim();
+    const raw = ((await groqCall(null, [{role:'user',content:prompt}], 200)) || '').replace(/```json|```/g,'').trim();
     const parsed = JSON.parse(raw);
     if(parsed.learning) {
       await saveMemory(agentId, parsed.learning, parsed.sector||'episodic', 'chat individual', '');
@@ -1006,23 +994,8 @@ async function sendMsg() {
 
   const apiKey = LS.get('apikey');
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version':'2023-06-01',
-        'anthropic-dangerous-direct-browser-access':'true'
-      },
-      body: JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:1000,
-        system: await buildSystemPrompt(currentAgent, userMsg),
-        messages: chatHistory[currentAgent]
-      })
-    });
-    const data = await resp.json();
-    const reply = data.content?.map(b=>b.text||'').join('') || (data.error?.message || 'Error al obtener respuesta.');
+    const sys = await buildSystemPrompt(currentAgent, userMsg);
+    const reply = await groqCall(sys, chatHistory[currentAgent], 1000) || 'Error al obtener respuesta.';
     chatHistory[currentAgent].push({ role:'assistant', content:reply });
     saveChatHistory();
     // Learn from this chat exchange (every 3rd message to avoid noise)
@@ -1787,24 +1760,9 @@ function removeMissionTyping() {
 }
 
 async function callClaude(systemPrompt, messages, maxTokens=800) {
-  const apiKey = LS.get('apikey');
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
-    method:'POST',
-    headers:{
-      'Content-Type':'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version':'2023-06-01',
-      'anthropic-dangerous-direct-browser-access':'true'
-    },
-    body: JSON.stringify({
-      model:'claude-sonnet-4-20250514',
-      max_tokens: maxTokens,
-      system: systemPrompt,
-      messages
-    })
-  });
-  const data = await resp.json();
-  return data.content?.map(b=>b.text||'').join('') || (data.error?.message || 'Error.');
+  try {
+    return await groqCall(systemPrompt, messages, maxTokens) || 'Error.';
+  } catch(e) { return 'Error: ' + e.message; }
 }
 
 async function runMission() {
@@ -1818,7 +1776,7 @@ async function runMission() {
 
   const apiKey = LS.get('apikey');
   if(!apiKey) { 
-    missionThread.push({ agent:'system', content:'⚙️ API key no configurada.\n\nVe a ⚙ Ajustes (arriba a la derecha) y pega tu clave de Anthropic (sk-ant-...).\n\nSi ya la tenías en otra versión del archivo, debes volver a ingresarla aquí.' });
+    missionThread.push({ agent:'system', content:'⚙️ API key no configurada.\n\nVe a ⚙ Ajustes (arriba a la derecha) y pega tu clave de Groq (gsk_...).\n\nSi ya la tenías en otra versión del archivo, debes volver a ingresarla aquí.' });
     renderMissionThread();
     btn.disabled = false;
     return; 
@@ -2438,7 +2396,7 @@ function resetAll() {
 // ============================================================
 function saveKey() {
   const key = document.getElementById('setup-key').value.trim();
-  if(!key.startsWith('sk-ant')) { alert('Esa no parece una clave válida de Anthropic. Debe empezar con sk-ant-'); return; }
+  if(!key.startsWith('gsk_')) { alert('Clave inválida. Debe empezar con gsk_  — obtenla gratis en console.groq.com'); return; }
   LS.set('apikey', key);
   boot();
 }
@@ -2543,27 +2501,36 @@ Ops: ${sharedBrain.ops?.substring(0,150) || 'nada aún'}
   }
 };
 
-async function callAgentAPI(agentId, prompt) {
+
+// ============================================================
+// GROQ API — 100% GRATIS (llama-3.3-70b-versatile)
+// ============================================================
+async function groqCall(systemPrompt, messages, maxTokens=800) {
   const apiKey = LS.get('apikey');
-  if(!apiKey) return null;
-  const sys = await buildSystemPrompt(agentId, prompt);
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+  if(!apiKey) throw new Error('Sin API key');
+  const allMessages = systemPrompt
+    ? [{ role: 'system', content: systemPrompt }, ...messages]
+    : messages;
+  const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
+      'Authorization': 'Bearer ' + apiKey
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 400,
-      system: sys,
-      messages: [{ role: 'user', content: prompt }]
+      model: 'llama-3.3-70b-versatile',
+      max_tokens: maxTokens,
+      messages: allMessages
     })
   });
   const data = await resp.json();
-  return data.content?.map(b => b.text || '').join('') || null;
+  if(data.error) throw new Error(data.error.message);
+  return data.choices?.[0]?.message?.content || null;
+}
+
+async function callAgentAPI(agentId, prompt) {
+  const sys = await buildSystemPrompt(agentId, prompt);
+  return await groqCall(sys, [{ role: 'user', content: prompt }], 400);
 }
 
 async function runSingleAgent(agentId) {

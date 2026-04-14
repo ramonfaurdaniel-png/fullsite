@@ -681,8 +681,8 @@ function speak(text) {
   const clean = text.replace(/[*_`#►▶◈⬡→]/g,'').trim();
   const utt = new SpeechSynthesisUtterance(clean);
   utt.lang = 'es-MX';
-  utt.rate = 1.05;
-  utt.pitch = 0.9;
+  utt.rate = 0.88;
+  utt.pitch = 0.85;
   utt.volume = 1;
   // Pick a decent voice
   const voices = window.speechSynthesis.getVoices();
@@ -817,14 +817,22 @@ function updateKPIPanel(d) {
   el('kpi-chil').textContent = d.chilaquiles_total || '—';
   el('kpi-hh').textContent = d.half_half_total || '—';
 
-  // Top platillos
+  // Top platillos — filtrar solo nombres reales (no números, no meseros, no grupos)
   if(d.platillos_top) {
     try {
-      const plats = typeof d.platillos_top==='string' ? JSON.parse(d.platillos_top) : d.platillos_top;
-      const top5 = Array.isArray(plats) ? plats.slice(0,5) : Object.entries(plats).slice(0,5).map(([k,v])=>({nombre:k,cantidad:v}));
-      el('kpi-platillos').innerHTML = top5.map(p=>
-        `<div class="card-row"><span>${p.nombre||p[0]||'—'}</span><span class="card-row-val">${p.cantidad||p[1]||'—'}</span></div>`
-      ).join('');
+      const raw = typeof d.platillos_top==='string' ? JSON.parse(d.platillos_top) : d.platillos_top;
+      const meseroNames = (d.meseros||[]).map(m=>m.nombre);
+      const skip = ['Restaurant','eCommerce','Para llevar','SERVER1','APLICACIONES','MESERO EVENTO'];
+      const plats = raw.filter(p => {
+        if(!p.nombre || !p.total || p.total===0) return false;
+        if(/^\d+$/.test(p.nombre.trim())) return false; // solo números = ID
+        if(meseroNames.includes(p.nombre)) return false;  // es mesero
+        if(skip.some(s=>p.nombre.includes(s))) return false;
+        return true;
+      }).slice(0,5);
+      el('kpi-platillos').innerHTML = plats.length
+        ? plats.map(p=>`<div class="card-row"><span>${p.nombre}</span><span class="card-row-val">${fmt(p.total)}</span></div>`).join('')
+        : '<div class="card-row"><span style="color:var(--dim)">Sin datos de platillos</span></div>';
     } catch(e) {}
   }
 
@@ -832,9 +840,8 @@ function updateKPIPanel(d) {
   if(d.meseros) {
     try {
       const mes = typeof d.meseros==='string' ? JSON.parse(d.meseros) : d.meseros;
-      const list = Array.isArray(mes) ? mes.slice(0,5) : Object.entries(mes).slice(0,5).map(([k,v])=>({nombre:k,ventas:v}));
-      el('kpi-meseros').innerHTML = list.map(m=>
-        `<div class="card-row"><span>${m.nombre||m[0]||'—'}</span><span class="card-row-val">${fmt(m.ventas||m[1])}</span></div>`
+      el('kpi-meseros').innerHTML = mes.slice(0,5).map(m=>
+        `<div class="card-row"><span>${m.nombre}</span><span class="card-row-val">${fmt(m.total)}</span></div>`
       ).join('');
     } catch(e) {}
   }

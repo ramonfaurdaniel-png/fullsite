@@ -2318,6 +2318,7 @@ function openModal(type) {
   }
   if(type==='settings') {
     document.getElementById('s-key').value = LS.get('apikey') || '';
+    document.getElementById('s-tgid').value = LS.get('tg_chat_id') || '';
   }
   document.getElementById('overlay-'+type).classList.add('show');
 }
@@ -2476,13 +2477,11 @@ Dame: estado del equipo hoy + 1 decisión táctica concreta. Máx 3 oraciones.`
   },
   contenido: {
     icon: '✍️', label: 'Creando contenido',
-    getPrompt: () => `Eres el agente de Contenido de AMALAY Coffee & Market. Voz: cálida, local, auténtica (Monica).
-Contexto: ${sharedBrain.orchestrator?.substring(0,200) || 'iniciando'}
+    getPrompt: () => `Eres el agente de Contenido de AMALAY Coffee & Market. Voz: cálida, local, auténtica (Monica Gracia).
+Genera 1 caption de Instagram para AMALAY Coffee & Market, brunch San Pedro Garza García. Con emojis y hashtags.
 
-Genera 1 caption para Instagram de AMALAY con emojis y hashtags reales.
-
-Responde SOLO con este JSON sin backticks:
-{"caption":"texto del caption aquí con emojis y hashtags","platform":"instagram","status":"draft","client":"AMALAY"}`
+IMPORTANTE: Responde ÚNICAMENTE con el siguiente JSON, sin texto adicional, sin backticks, sin explicación:
+{"caption":"aquí va el texto completo del caption con emojis y #hashtags","platform":"instagram","status":"draft","client":"AMALAY"}`
   },
   reportes: {
     icon: '📊', label: 'Analizando métricas',
@@ -2607,6 +2606,8 @@ async function createAgentTask(title, priority='media', client='AMALAY') {
 }
 
 async function saveContentDraft(caption, platform='instagram', client='AMALAY') {
+  // Validar que sea un caption real (no JSON roto o plantilla)
+  if(!caption || caption.includes('*Plataforma:*') || caption.includes('*Tipo:*') || caption.length < 20) return null;
   // Check duplicates
   const exists = _content.find(c => c.title === caption.slice(0,60) && c.status === 'draft');
   if(exists) return null;

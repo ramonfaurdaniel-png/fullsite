@@ -2577,11 +2577,10 @@ async function groqCall(systemPrompt, messages, maxTokens=800) {
   const allMessages = systemPrompt
     ? [{ role: 'system', content: systemPrompt }, ...messages]
     : messages;
-  const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+  const resp = await fetch('https://fullsite-proxy.ramonfaur-daniel.workers.dev', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + apiKey
     },
     body: JSON.stringify({
       model: 'llama-3.3-70b-versatile',

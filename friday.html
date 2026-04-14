@@ -394,11 +394,17 @@ async function askFriday(userMsg) {
   let maxIter=3, response='';
 
   for(let i=0;i<maxIter;i++){
-    const resp=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+    let resp;
+    for(let attempt=0;attempt<3;attempt++){
+      try{
+        resp=await fetch('https://api.groq.com/openai/v1/chat/completions',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
       body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:350,messages,tools:TOOLS,tool_choice:'auto'})
     });
+        break;
+      }catch(re){if(attempt>=2)throw re;await new Promise(r=>setTimeout(r,2000*(attempt+1)));}
+    }
     const data=await resp.json();
     if(data.error) throw new Error(data.error.message);
     const msg=data.choices?.[0]?.message;
@@ -522,7 +528,8 @@ function q(cmd){el('jin').value=cmd;send();}
 // ── DATA FETCHES ──
 async function fetchMarkets(){
   try{
-    const r=await fetch(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${SYMS.join(',')}&fields=regularMarketPrice,regularMarketChangePercent`);
+    const proxyUrl='https://corsproxy.io/?url='+encodeURIComponent(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${SYMS.join(',')}&fields=regularMarketPrice,regularMarketChangePercent`);
+    const r=await fetch(proxyUrl);
     const data=await r.json();
     (data?.quoteResponse?.result||[]).forEach(q=>{
       const sym=SMAP[q.symbol]||q.symbol;
@@ -593,7 +600,7 @@ function tick(){el('clk').textContent=new Date().toLocaleTimeString('en-US',{hou
 function boot(){
   const key=el('sk').value.trim();
   if(!key.startsWith('gsk_')){alert('Invalid key — must start with gsk_');return;}
-  apiKey=key;LS.set('friday_key',key);
+  apiKey=key;LS.set('friday_key',key);LS.set('apikey',key);
   el('setup').style.display='none';el('app').style.display='grid';
   tick();setInterval(tick,1000);
   recognition=initRec();
@@ -611,7 +618,7 @@ function boot(){
 
 window.addEventListener('DOMContentLoaded',()=>{
   const k=LS.get('friday_key')||LS.get('jarvis_key')||LS.get('apikey');
-  if(k?.startsWith('gsk_'))el('sk').value=k;
+  if(k?.startsWith('gsk_')){el('sk').value=k;apiKey=k;el('setup').style.display='none';el('app').style.display='grid';tick();setInterval(tick,1000);recognition=initRec();Promise.all([fetchMarkets(),fetchWeather(),fetchNews()]);setInterval(fetchMarkets,60000);setInterval(fetchWeather,300000);setInterval(fetchNews,300000);setTimeout(()=>{const h=new Date().getHours();const g=h<12?'Good morning':h<18?'Good afternoon':'Good evening';addMsg('ai',`${g}, Daniel. F.R.I.D.A.Y online. Systems loaded.`);speak(`${g} Daniel. Friday online.`);},800);}
   if(window.speechSynthesis)window.speechSynthesis.onvoiceschanged=()=>window.speechSynthesis.getVoices();
 });
 </script>

@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS — Fullsite</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#020810;
+  --bg2:#030d1a;
+  --blue:#00d4ff;
+  --blue2:#0099cc;
+  --cyan:#00ffff;
+  --glow:#00d4ff44;
+  --glow2:#00d4ff22;
+  --red:#ff3366;
+  --amber:#ffaa00;
+  --green:#00ff88;
+  --text:#c8eeff;
+  --dim:#3a6080;
+  --panel:#030d1a;
+}
+
+body {
+  font-family:'Rajdhani',sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+  overflow:hidden;
+  position:relative;
+}
+
+/* Grid background */
+body::before {
+  content:'';
+  position:fixed;
+  inset:0;
+  background-image:
+    linear-gradient(rgba(0,212,255,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,.04) 1px, transparent 1px);
+  background-size:40px 40px;
+  pointer-events:none;
+  z-index:0;
+}
+
+/* Scan lines */
+body::after {
+  content:'';
+  position:fixed;
+  inset:0;
+  background:repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,.15) 2px,
+    rgba(0,0,0,.15) 4px
+  );
+  pointer-events:none;
+  z-index:1;
+}
+
+/* ── TOPBAR ── */
+.topbar {
+  position:fixed;
+  top:0;left:0;right:0;
+  height:52px;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 28px;
+  border-bottom:1px solid rgba(0,212,255,.2);
+  background:rgba(2,8,16,.9);
+  backdrop-filter:blur(10px);
+  z-index:100;
+}
+.logo {
+  font-family:'Orbitron',monospace;
+  font-size:15px;
+  font-weight:900;
+  letter-spacing:.3em;
+  color:var(--blue);
+  text-shadow:0 0 20px var(--blue);
+}
+.logo span { color:#ffffff44; font-weight:400; }
+.status-bar {
+  display:flex;align-items:center;gap:20px;
+  font-size:10px;letter-spacing:.12em;color:var(--dim);
+}
+.status-item { display:flex;align-items:center;gap:6px; }
+.status-dot { width:5px;height:5px;border-radius:50%;background:var(--green);animation:blink 2s infinite; }
+.status-dot.amber { background:var(--amber);animation:none; }
+#clk { font-family:'Orbitron',monospace;font-size:11px;color:var(--blue);letter-spacing:.1em; }
+
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:.3} }
+
+/* ── MAIN LAYOUT ── */
+.layout {
+  position:fixed;
+  inset:52px 0 0 0;
+  display:grid;
+  grid-template-columns:260px 1fr 260px;
+  grid-template-rows:1fr auto;
+  gap:0;
+  z-index:2;
+}
+
+/* ── SIDE PANELS ── */
+.panel-left, .panel-right {
+  padding:20px 16px;
+  border-right:1px solid rgba(0,212,255,.12);
+  overflow-y:auto;
+  display:flex;flex-direction:column;gap:14px;
+}
+.panel-right { border-right:none;border-left:1px solid rgba(0,212,255,.12); }
+
+.panel-card {
+  background:rgba(0,212,255,.04);
+  border:1px solid rgba(0,212,255,.15);
+  border-radius:4px;
+  padding:12px 14px;
+  position:relative;
+  overflow:hidden;
+}
+.panel-card::before {
+  content:'';
+  position:absolute;
+  top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--blue),transparent);
+  opacity:.5;
+}
+.card-label {
+  font-family:'Orbitron',monospace;
+  font-size:7px;letter-spacing:.2em;
+  color:var(--dim);text-transform:uppercase;
+  margin-bottom:10px;
+}
+.card-val {
+  font-family:'Orbitron',monospace;
+  font-size:22px;font-weight:700;
+  color:var(--blue);
+  text-shadow:0 0 15px var(--blue);
+}
+.card-sub { font-size:10px;color:var(--dim);margin-top:3px;letter-spacing:.05em; }
+.card-list { display:flex;flex-direction:column;gap:5px; }
+.card-row {
+  display:flex;align-items:center;justify-content:space-between;
+  font-size:11px;padding:4px 0;
+  border-bottom:1px solid rgba(0,212,255,.06);
+}
+.card-row:last-child { border-bottom:none; }
+.card-row-val { font-family:'Orbitron',monospace;font-size:10px;color:var(--cyan); }
+
+/* ── CENTER ── */
+.center {
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;
+  position:relative;
+  overflow:hidden;
+}
+
+/* HUD Rings */
+.hud-rings {
+  position:relative;
+  width:320px;height:320px;
+  flex-shrink:0;
+  margin-bottom:32px;
+}
+
+.ring {
+  position:absolute;
+  border-radius:50%;
+  border:1px solid;
+  top:50%;left:50%;
+  transform:translate(-50%,-50%);
+}
+.ring-1 {
+  width:320px;height:320px;
+  border-color:rgba(0,212,255,.12);
+  animation:spin 40s linear infinite;
+}
+.ring-2 {
+  width:280px;height:280px;
+  border-color:rgba(0,212,255,.2);
+  border-style:dashed;
+  animation:spin 25s linear infinite reverse;
+}
+.ring-3 {
+  width:240px;height:240px;
+  border-color:rgba(0,212,255,.3);
+  animation:spin 15s linear infinite;
+}
+.ring-4 {
+  width:200px;height:200px;
+  border-color:rgba(0,255,255,.25);
+  animation:spin 10s linear infinite reverse;
+}
+
+/* Arc decorations */
+.arc {
+  position:absolute;
+  border-radius:50%;
+  top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  border:2px solid transparent;
+}
+.arc-1 {
+  width:320px;height:320px;
+  border-top-color:var(--blue);
+  border-right-color:var(--blue);
+  animation:spin 4s linear infinite;
+  filter:drop-shadow(0 0 6px var(--blue));
+}
+.arc-2 {
+  width:240px;height:240px;
+  border-bottom-color:var(--cyan);
+  border-left-color:var(--cyan);
+  animation:spin 3s linear infinite reverse;
+  filter:drop-shadow(0 0 4px var(--cyan));
+}
+.arc-3 {
+  width:180px;height:180px;
+  border-top-color:rgba(0,212,255,.6);
+  animation:spin 6s linear infinite;
+}
+
+@keyframes spin { to { transform:translate(-50%,-50%) rotate(360deg); } }
+
+/* Core reactor */
+.reactor {
+  position:absolute;
+  top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  width:120px;height:120px;
+  border-radius:50%;
+  background:radial-gradient(circle, rgba(0,212,255,.3) 0%, rgba(0,212,255,.1) 40%, transparent 70%);
+  border:1px solid rgba(0,212,255,.5);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;
+  transition:all .3s;
+}
+.reactor:hover {
+  background:radial-gradient(circle, rgba(0,212,255,.5) 0%, rgba(0,212,255,.2) 40%, transparent 70%);
+  box-shadow:0 0 40px var(--blue), inset 0 0 30px rgba(0,212,255,.3);
+}
+.reactor.listening {
+  animation:pulse-reactor 1s ease-in-out infinite;
+  background:radial-gradient(circle, rgba(0,255,100,.4) 0%, rgba(0,255,100,.15) 40%, transparent 70%);
+  border-color:var(--green);
+  box-shadow:0 0 40px var(--green);
+}
+.reactor.thinking {
+  animation:pulse-reactor .5s ease-in-out infinite;
+}
+@keyframes pulse-reactor {
+  0%,100%{box-shadow:0 0 20px var(--blue), inset 0 0 20px rgba(0,212,255,.2);}
+  50%{box-shadow:0 0 60px var(--blue), inset 0 0 40px rgba(0,212,255,.4);}
+}
+
+.reactor-icon {
+  font-size:36px;
+  filter:drop-shadow(0 0 10px var(--blue));
+  transition:all .3s;
+  user-select:none;
+}
+.reactor-label {
+  position:absolute;
+  bottom:-30px;left:50%;transform:translateX(-50%);
+  font-family:'Orbitron',monospace;font-size:8px;letter-spacing:.2em;
+  color:var(--dim);white-space:nowrap;
+}
+
+/* Corner HUD decorations */
+.hud-corner {
+  position:absolute;
+  width:40px;height:40px;
+}
+.hud-corner.tl { top:0;left:0;border-top:2px solid var(--blue);border-left:2px solid var(--blue); }
+.hud-corner.tr { top:0;right:0;border-top:2px solid var(--blue);border-right:2px solid var(--blue); }
+.hud-corner.bl { bottom:0;left:0;border-bottom:2px solid var(--blue);border-left:2px solid var(--blue); }
+.hud-corner.br { bottom:0;right:0;border-bottom:2px solid var(--blue);border-right:2px solid var(--blue); }
+
+/* Waveform */
+.waveform {
+  position:absolute;
+  bottom:20px;
+  width:200px;height:30px;
+  display:flex;align-items:center;justify-content:center;gap:2px;
+  opacity:0;transition:opacity .3s;
+}
+.waveform.active { opacity:1; }
+.wave-bar {
+  width:3px;border-radius:2px;
+  background:var(--green);
+  animation:wave 0.5s ease-in-out infinite alternate;
+}
+.wave-bar:nth-child(1){height:8px;animation-delay:0s;}
+.wave-bar:nth-child(2){height:16px;animation-delay:.05s;}
+.wave-bar:nth-child(3){height:24px;animation-delay:.1s;}
+.wave-bar:nth-child(4){height:20px;animation-delay:.15s;}
+.wave-bar:nth-child(5){height:28px;animation-delay:.2s;}
+.wave-bar:nth-child(6){height:22px;animation-delay:.25s;}
+.wave-bar:nth-child(7){height:14px;animation-delay:.3s;}
+.wave-bar:nth-child(8){height:18px;animation-delay:.35s;}
+.wave-bar:nth-child(9){height:26px;animation-delay:.4s;}
+.wave-bar:nth-child(10){height:12px;animation-delay:.45s;}
+@keyframes wave { to { transform:scaleY(.3); } }
+
+/* ── CHAT AREA ── */
+.chat-area {
+  width:100%;max-width:600px;
+  display:flex;flex-direction:column;gap:12px;
+  padding:0 20px;
+  max-height:200px;
+  overflow-y:auto;
+}
+.chat-area::-webkit-scrollbar { width:0; }
+
+.msg {
+  padding:10px 16px;
+  border-radius:4px;
+  font-size:13px;line-height:1.6;
+  position:relative;
+  animation:fadeUp .3s ease;
+}
+.msg.user {
+  background:rgba(0,212,255,.08);
+  border:1px solid rgba(0,212,255,.2);
+  border-left:2px solid var(--blue);
+  align-self:flex-end;
+  max-width:80%;
+}
+.msg.jarvis {
+  background:rgba(0,0,0,.4);
+  border:1px solid rgba(0,212,255,.1);
+  border-left:2px solid var(--cyan);
+  font-size:12px;
+  color:#aad4ff;
+}
+.msg-label {
+  font-family:'Orbitron',monospace;font-size:7px;letter-spacing:.2em;
+  color:var(--dim);margin-bottom:5px;text-transform:uppercase;
+}
+@keyframes fadeUp { from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)} }
+
+/* Typing indicator */
+.typing-dots { display:flex;gap:4px;padding:4px 0; }
+.typing-dots span {
+  width:6px;height:6px;border-radius:50%;background:var(--blue);
+  animation:dotBounce .8s ease-in-out infinite;
+}
+.typing-dots span:nth-child(2){animation-delay:.15s;}
+.typing-dots span:nth-child(3){animation-delay:.3s;}
+@keyframes dotBounce { 0%,80%,100%{transform:scale(.6)}40%{transform:scale(1);} }
+
+/* ── BOTTOM BAR ── */
+.bottom-bar {
+  grid-column:1/-1;
+  padding:14px 28px;
+  border-top:1px solid rgba(0,212,255,.12);
+  background:rgba(2,8,16,.95);
+  display:flex;align-items:center;gap:12px;
+}
+.input-wrap {
+  flex:1;display:flex;align-items:center;gap:10px;
+  background:rgba(0,212,255,.05);
+  border:1px solid rgba(0,212,255,.2);
+  border-radius:4px;padding:0 14px;
+}
+.input-wrap:focus-within { border-color:rgba(0,212,255,.5); box-shadow:0 0 20px rgba(0,212,255,.1); }
+.jarvis-input {
+  flex:1;background:none;border:none;
+  color:var(--text);font-family:'Rajdhani',sans-serif;
+  font-size:14px;letter-spacing:.03em;padding:10px 0;
+  outline:none;
+}
+.jarvis-input::placeholder { color:var(--dim); }
+.mic-btn, .send-btn {
+  width:42px;height:42px;border-radius:4px;border:1px solid rgba(0,212,255,.3);
+  background:rgba(0,212,255,.08);color:var(--blue);
+  font-size:18px;cursor:pointer;transition:all .2s;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.mic-btn:hover,.send-btn:hover {
+  background:rgba(0,212,255,.15);border-color:var(--blue);
+  box-shadow:0 0 15px rgba(0,212,255,.3);
+}
+.mic-btn.active {
+  background:rgba(0,255,100,.15);border-color:var(--green);color:var(--green);
+  box-shadow:0 0 20px rgba(0,255,100,.4);animation:mic-pulse 1s ease-in-out infinite;
+}
+@keyframes mic-pulse { 0%,100%{box-shadow:0 0 10px rgba(0,255,100,.3)}50%{box-shadow:0 0 30px rgba(0,255,100,.6)} }
+
+/* Setup overlay */
+#setup {
+  position:fixed;inset:0;
+  background:rgba(2,8,16,.97);
+  display:flex;align-items:center;justify-content:center;
+  z-index:999;
+}
+.setup-box {
+  background:rgba(3,13,26,.9);
+  border:1px solid rgba(0,212,255,.3);
+  border-radius:8px;padding:40px;
+  width:380px;text-align:center;
+  box-shadow:0 0 60px rgba(0,212,255,.1);
+}
+.setup-title {
+  font-family:'Orbitron',monospace;font-size:28px;font-weight:900;
+  color:var(--blue);text-shadow:0 0 30px var(--blue);
+  letter-spacing:.3em;margin-bottom:6px;
+}
+.setup-sub {
+  font-size:11px;color:var(--dim);letter-spacing:.15em;margin-bottom:32px;
+}
+.setup-input {
+  width:100%;background:rgba(0,212,255,.05);
+  border:1px solid rgba(0,212,255,.25);border-radius:4px;
+  padding:12px 16px;color:var(--text);
+  font-family:'Rajdhani',sans-serif;font-size:13px;
+  outline:none;margin-bottom:14px;
+}
+.setup-input:focus { border-color:rgba(0,212,255,.6); }
+.setup-btn {
+  width:100%;padding:12px;
+  background:transparent;
+  border:1px solid var(--blue);border-radius:4px;
+  color:var(--blue);font-family:'Orbitron',monospace;
+  font-size:11px;font-weight:700;letter-spacing:.2em;
+  cursor:pointer;transition:all .2s;
+}
+.setup-btn:hover {
+  background:rgba(0,212,255,.1);
+  box-shadow:0 0 20px rgba(0,212,255,.3);
+}
+
+/* HUD corner decorations - full screen */
+.corner {
+  position:fixed;width:60px;height:60px;
+  pointer-events:none;z-index:3;
+}
+.corner.tl { top:52px;left:0;border-top:1px solid var(--blue);border-left:1px solid var(--blue);opacity:.4; }
+.corner.tr { top:52px;right:0;border-top:1px solid var(--blue);border-right:1px solid var(--blue);opacity:.4; }
+.corner.bl { bottom:70px;left:0;border-bottom:1px solid var(--blue);border-left:1px solid var(--blue);opacity:.4; }
+.corner.br { bottom:70px;right:0;border-bottom:1px solid var(--blue);border-right:1px solid var(--blue);opacity:.4; }
+
+/* Notif */
+.notif {
+  position:fixed;top:64px;right:20px;
+  background:#030d1a;border:1px solid var(--blue);
+  border-radius:4px;padding:10px 16px;
+  font-size:11px;color:var(--blue);
+  z-index:500;animation:fadeUp .3s ease;
+  font-family:'Orbitron',monospace;letter-spacing:.05em;
+  box-shadow:0 0 20px rgba(0,212,255,.2);
+}
+</style>
+</head>
+<body>
+
+<!-- Setup -->
+<div id="setup">
+  <div class="setup-box">
+    <div class="setup-title">JARVIS</div>
+    <div class="setup-sub">FULLSITE INTELLIGENCE SYSTEM v3.0</div>
+    <input class="setup-input" id="setup-key" type="password" placeholder="API Key de Groq (gsk_...)" autocomplete="off">
+    <input class="setup-input" id="setup-tgid" type="text" placeholder="Telegram Chat ID (opcional)">
+    <button class="setup-btn" onclick="initJarvis()">◈ INICIALIZAR SISTEMA</button>
+  </div>
+</div>
+
+<!-- HUD corners -->
+<div class="corner tl"></div>
+<div class="corner tr"></div>
+<div class="corner bl"></div>
+<div class="corner br"></div>
+
+<!-- Topbar -->
+<div class="topbar">
+  <div class="logo">JARVIS <span>// FULLSITE</span></div>
+  <div class="status-bar">
+    <div class="status-item"><div class="status-dot" id="ai-dot"></div><span id="ai-status">STANDBY</span></div>
+    <div class="status-item"><div class="status-dot amber"></div><span>AMALAY ONLINE</span></div>
+    <div class="status-item"><span id="clk">--:--</span></div>
+  </div>
+</div>
+
+<!-- Layout -->
+<div class="layout" id="app" style="display:none">
+
+  <!-- Left panel -->
+  <div class="panel-left">
+    <div class="panel-card">
+      <div class="card-label">▸ Ventas Hoy</div>
+      <div class="card-val" id="kpi-ventas">—</div>
+      <div class="card-sub">Ventas netas · Wansoft Live</div>
+    </div>
+    <div class="panel-card">
+      <div class="card-label">▸ Efectivo / Tarjeta</div>
+      <div class="card-list" id="kpi-pagos">
+        <div class="card-row"><span>Efectivo</span><span class="card-row-val" id="kpi-ef">—</span></div>
+        <div class="card-row"><span>Tarjeta</span><span class="card-row-val" id="kpi-tc">—</span></div>
+      </div>
+    </div>
+    <div class="panel-card">
+      <div class="card-label">▸ Top Platillos</div>
+      <div class="card-list" id="kpi-platillos">
+        <div class="card-row"><span style="color:var(--dim)">Cargando...</span></div>
+      </div>
+    </div>
+    <div class="panel-card">
+      <div class="card-label">▸ Chilaquiles / H&H</div>
+      <div class="card-list">
+        <div class="card-row"><span>Chilaquiles</span><span class="card-row-val" id="kpi-chil">—</span></div>
+        <div class="card-row"><span>Half & Half</span><span class="card-row-val" id="kpi-hh">—</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Center -->
+  <div class="center">
+    <!-- HUD Rings -->
+    <div class="hud-rings">
+      <div class="ring ring-1"></div>
+      <div class="ring ring-2"></div>
+      <div class="ring ring-3"></div>
+      <div class="ring ring-4"></div>
+      <div class="arc arc-1"></div>
+      <div class="arc arc-2"></div>
+      <div class="arc arc-3"></div>
+      <!-- Reactor -->
+      <div class="reactor" id="reactor" onclick="toggleListen()">
+        <span class="reactor-icon" id="reactor-icon">⬡</span>
+        <div class="reactor-label" id="reactor-label">PRESIONA PARA HABLAR</div>
+      </div>
+      <!-- Waveform -->
+      <div class="waveform" id="waveform">
+        <div class="wave-bar"></div><div class="wave-bar"></div>
+        <div class="wave-bar"></div><div class="wave-bar"></div>
+        <div class="wave-bar"></div><div class="wave-bar"></div>
+        <div class="wave-bar"></div><div class="wave-bar"></div>
+        <div class="wave-bar"></div><div class="wave-bar"></div>
+      </div>
+    </div>
+
+    <!-- Chat -->
+    <div class="chat-area" id="chat"></div>
+  </div>
+
+  <!-- Right panel -->
+  <div class="panel-right">
+    <div class="panel-card">
+      <div class="card-label">▸ Estado AMALAY</div>
+      <div class="card-list">
+        <div class="card-row"><span>Google Ads</span><span class="card-row-val" style="color:var(--amber)">⚠ FLAG</span></div>
+        <div class="card-row"><span>GBP API</span><span class="card-row-val" style="color:var(--amber)">PENDING</span></div>
+        <div class="card-row"><span>Bot TG</span><span class="card-row-val" style="color:var(--green)">ONLINE</span></div>
+        <div class="card-row"><span>Website</span><span class="card-row-val" style="color:var(--green)">LIVE</span></div>
+      </div>
+    </div>
+    <div class="panel-card">
+      <div class="card-label">▸ Meseros Top</div>
+      <div class="card-list" id="kpi-meseros">
+        <div class="card-row"><span style="color:var(--dim)">Cargando...</span></div>
+      </div>
+    </div>
+    <div class="panel-card">
+      <div class="card-label">▸ Acceso Rápido</div>
+      <div class="card-list">
+        <div class="card-row" style="cursor:pointer" onclick="quickCmd('Dame el resumen de ventas de hoy')"><span style="color:var(--blue)">▶ Resumen de ventas</span></div>
+        <div class="card-row" style="cursor:pointer" onclick="quickCmd('¿Qué tareas están pendientes?')"><span style="color:var(--blue)">▶ Tareas pendientes</span></div>
+        <div class="card-row" style="cursor:pointer" onclick="quickCmd('Dame ideas de contenido para hoy')"><span style="color:var(--blue)">▶ Ideas de contenido</span></div>
+        <div class="card-row" style="cursor:pointer" onclick="quickCmd('¿Cómo va la campaña de Google Ads?')"><span style="color:var(--blue)">▶ Google Ads status</span></div>
+        <div class="card-row" style="cursor:pointer" onclick="quickCmd('¿Hay reseñas que responder?')"><span style="color:var(--blue)">▶ Reseñas pendientes</span></div>
+      </div>
+    </div>
+    <div class="panel-card">
+      <div class="card-label">▸ War Room</div>
+      <div class="card-list">
+        <div class="card-row" style="cursor:pointer" onclick="window.open('https://ramonfaurdaniel-png.github.io/fullsite/fullsite.html','_blank')">
+          <span style="color:var(--cyan)">↗ Abrir War Room</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom bar -->
+  <div class="bottom-bar">
+    <button class="mic-btn" id="mic-btn" onclick="toggleListen()" title="Hablar">🎤</button>
+    <div class="input-wrap">
+      <input class="jarvis-input" id="jarvis-input" placeholder="Habla con JARVIS o escribe aquí..." onkeydown="if(event.key==='Enter')sendMsg()">
+    </div>
+    <button class="send-btn" onclick="sendMsg()">◈</button>
+  </div>
+
+</div>
+
+<script>
+// ── CONFIG ──
+const SB_URL = 'https://qjiomlvudfmzuvqvhwpk.supabase.co';
+const SB_KEY = 'sb_publishable_8_nNPHJT1RsfZhpXB6ARGA_6aOwZasM';
+const SB_H = { 'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json' };
+const TG_TOKEN = '8682054788:AAHhqWN59aTDnc_QREC-RqwgNGNkMqbTafs';
+
+// ── STATE ──
+let apiKey = '';
+let tgChatId = '';
+let isListening = false;
+let isSpeaking = false;
+let recognition = null;
+let chatHistory = [];
+let wansoftData = {};
+
+// ── LOCALSTORAGE ──
+const LS = { get:k=>localStorage.getItem(k), set:(k,v)=>localStorage.setItem(k,v) };
+
+// ── JARVIS SYSTEM PROMPT ──
+function buildSystemPrompt() {
+  const kpis = wansoftData;
+  return `Eres JARVIS, el asistente de inteligencia de Fullsite para Daniel Ramonfaur.
+Eres conciso, directo y profesional. Respuestas cortas para voz (máx 3 oraciones salvo que pidan más).
+Hablas en español. Tienes acceso a datos en tiempo real de AMALAY Coffee & Market.
+
+CLIENTE ACTIVO — AMALAY Coffee & Market:
+- Ubicación: Plaza Duendes, San Pedro Garza García, NL
+- Contacto: Monica Gracia (monigp75@gmail.com) | Tel: 81 1409 7749
+- Website: cafeamalay.com | Instagram: @amalaycoffee
+- Horario: Lun-Mié 8am-8pm | Jue-Sáb 8am-11pm | Dom 8am-5pm
+- Google Ads: Performance Max "Amalay Coffee Market" MX$150/día
+- ⚠️ URGENTE: Asset group "Pal Norte 2026" con flag de alcohol — pausar o eliminar
+
+DATOS WANSOFT LIVE:
+- Ventas netas hoy: ${kpis.ventas_netas ? '$'+kpis.ventas_netas.toLocaleString() : 'No disponible'}
+- Ventas brutas: ${kpis.ventas_brutas ? '$'+kpis.ventas_brutas.toLocaleString() : 'No disponible'}
+- Efectivo: ${kpis.efectivo ? '$'+kpis.efectivo.toLocaleString() : '—'} | Tarjeta: ${kpis.tarjeta ? '$'+kpis.tarjeta.toLocaleString() : '—'}
+- Chilaquiles: ${kpis.chilaquiles_total || '—'} | Half&Half: ${kpis.half_half_total || '—'}
+
+INFRAESTRUCTURA:
+- War Room: ramonfaurdaniel-png.github.io/fullsite/fullsite.html
+- Bot Telegram: @fullsite_warroom_bot
+- n8n: danielramonfaur.app.n8n.cloud
+- Supabase: wansoft_kpis (live), tasks, content, clients
+
+PENDIENTES CRÍTICOS:
+1. Pausar/eliminar asset group "Pal Norte 2026" en Google Ads
+2. Recargar Anthropic API ($5 USD en console.anthropic.com) — bot TG roto sin esto
+3. n8n daily report — importar JSON y activar
+4. GBP API — pendiente de aprobación de Google
+
+Cuando te pregunten por tareas, ventas, contenido o estado del sistema, responde con los datos que tienes.
+Si el usuario pide crear una tarea, confirma que la anotarás.`;
+}
+
+// ── GROQ API ──
+async function askJarvis(message) {
+  chatHistory.push({ role:'user', content: message });
+  if(chatHistory.length > 20) chatHistory = chatHistory.slice(-20);
+
+  const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json','Authorization':'Bearer '+apiKey },
+    body: JSON.stringify({
+      model:'llama-3.3-70b-versatile',
+      max_tokens:300,
+      messages:[
+        { role:'system', content: buildSystemPrompt() },
+        ...chatHistory
+      ]
+    })
+  });
+  const data = await resp.json();
+  if(data.error) throw new Error(data.error.message);
+  const reply = data.choices?.[0]?.message?.content || 'No pude procesar esa solicitud.';
+  chatHistory.push({ role:'assistant', content: reply });
+  return reply;
+}
+
+// ── SPEECH ──
+function speak(text) {
+  if(!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const clean = text.replace(/[*_`#►▶◈⬡→]/g,'').trim();
+  const utt = new SpeechSynthesisUtterance(clean);
+  utt.lang = 'es-MX';
+  utt.rate = 1.05;
+  utt.pitch = 0.9;
+  utt.volume = 1;
+  // Pick a decent voice
+  const voices = window.speechSynthesis.getVoices();
+  const mxVoice = voices.find(v=>v.lang==='es-MX') || voices.find(v=>v.lang.startsWith('es'));
+  if(mxVoice) utt.voice = mxVoice;
+  isSpeaking = true;
+  utt.onend = () => { isSpeaking = false; };
+  window.speechSynthesis.speak(utt);
+}
+
+function initRecognition() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR) return null;
+  const r = new SR();
+  r.lang = 'es-MX';
+  r.continuous = false;
+  r.interimResults = false;
+  r.onresult = e => {
+    const txt = e.results[0][0].transcript;
+    stopListening();
+    processInput(txt);
+  };
+  r.onerror = () => stopListening();
+  r.onend = () => { if(isListening) stopListening(); };
+  return r;
+}
+
+function toggleListen() {
+  if(isListening) { stopListening(); return; }
+  if(isSpeaking) { window.speechSynthesis.cancel(); isSpeaking=false; }
+  if(!recognition) recognition = initRecognition();
+  if(!recognition) { showNotif('Voz no disponible en este navegador'); return; }
+  isListening = true;
+  recognition.start();
+  document.getElementById('reactor').classList.add('listening');
+  document.getElementById('mic-btn').classList.add('active');
+  document.getElementById('reactor-icon').textContent = '◎';
+  document.getElementById('reactor-label').textContent = 'ESCUCHANDO...';
+  document.getElementById('waveform').classList.add('active');
+  setStatus('LISTENING', true);
+}
+
+function stopListening() {
+  isListening = false;
+  if(recognition) try{recognition.stop();}catch(e){}
+  document.getElementById('reactor').classList.remove('listening');
+  document.getElementById('mic-btn').classList.remove('active');
+  document.getElementById('reactor-icon').textContent = '⬡';
+  document.getElementById('reactor-label').textContent = 'PRESIONA PARA HABLAR';
+  document.getElementById('waveform').classList.remove('active');
+  setStatus('STANDBY');
+}
+
+// ── CHAT ──
+function addMsg(role, text) {
+  const chat = document.getElementById('chat');
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+  div.innerHTML = `<div class="msg-label">${role==='user'?'▸ DANIEL':'◈ JARVIS'}</div><div>${text.replace(/\n/g,'<br>')}</div>`;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function addTyping() {
+  const chat = document.getElementById('chat');
+  const div = document.createElement('div');
+  div.className = 'msg jarvis';
+  div.id = 'typing-indicator';
+  div.innerHTML = '<div class="msg-label">◈ JARVIS</div><div class="typing-dots"><span></span><span></span><span></span></div>';
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+async function processInput(text) {
+  if(!text.trim()) return;
+  addMsg('user', text);
+  addTyping();
+  setStatus('PROCESSING');
+  document.getElementById('reactor').classList.add('thinking');
+  document.getElementById('reactor-icon').textContent = '◌';
+
+  try {
+    const reply = await askJarvis(text);
+    document.getElementById('typing-indicator')?.remove();
+    addMsg('jarvis', reply);
+    speak(reply);
+  } catch(e) {
+    document.getElementById('typing-indicator')?.remove();
+    const err = 'Error al conectar. Verifica tu API key.';
+    addMsg('jarvis', err);
+  }
+
+  document.getElementById('reactor').classList.remove('thinking');
+  document.getElementById('reactor-icon').textContent = '⬡';
+  setStatus('STANDBY');
+}
+
+function sendMsg() {
+  const input = document.getElementById('jarvis-input');
+  const text = input.value.trim();
+  if(!text) return;
+  input.value = '';
+  processInput(text);
+}
+
+function quickCmd(cmd) {
+  document.getElementById('jarvis-input').value = cmd;
+  sendMsg();
+}
+
+// ── WANSOFT DATA ──
+async function loadWansoft() {
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/wansoft_kpis?id=eq.amalay&select=*`, { headers: SB_H });
+    const data = await r.json();
+    if(data?.[0]) {
+      wansoftData = data[0];
+      updateKPIPanel(data[0]);
+    }
+  } catch(e) {}
+}
+
+function fmt(n) {
+  if(!n && n!==0) return '—';
+  return '$' + parseFloat(n).toLocaleString('es-MX', {minimumFractionDigits:0,maximumFractionDigits:0});
+}
+
+function updateKPIPanel(d) {
+  el('kpi-ventas').textContent = fmt(d.ventas_netas || d.ventas_brutas);
+  el('kpi-ef').textContent = fmt(d.efectivo);
+  el('kpi-tc').textContent = fmt(d.tarjeta);
+  el('kpi-chil').textContent = d.chilaquiles_total || '—';
+  el('kpi-hh').textContent = d.half_half_total || '—';
+
+  // Top platillos
+  if(d.platillos_top) {
+    try {
+      const plats = typeof d.platillos_top==='string' ? JSON.parse(d.platillos_top) : d.platillos_top;
+      const top5 = Array.isArray(plats) ? plats.slice(0,5) : Object.entries(plats).slice(0,5).map(([k,v])=>({nombre:k,cantidad:v}));
+      el('kpi-platillos').innerHTML = top5.map(p=>
+        `<div class="card-row"><span>${p.nombre||p[0]||'—'}</span><span class="card-row-val">${p.cantidad||p[1]||'—'}</span></div>`
+      ).join('');
+    } catch(e) {}
+  }
+
+  // Meseros
+  if(d.meseros) {
+    try {
+      const mes = typeof d.meseros==='string' ? JSON.parse(d.meseros) : d.meseros;
+      const list = Array.isArray(mes) ? mes.slice(0,5) : Object.entries(mes).slice(0,5).map(([k,v])=>({nombre:k,ventas:v}));
+      el('kpi-meseros').innerHTML = list.map(m=>
+        `<div class="card-row"><span>${m.nombre||m[0]||'—'}</span><span class="card-row-val">${fmt(m.ventas||m[1])}</span></div>`
+      ).join('');
+    } catch(e) {}
+  }
+}
+
+// ── UTILS ──
+function el(id) { return document.getElementById(id); }
+
+function setStatus(text, pulse=false) {
+  el('ai-status').textContent = text;
+  el('ai-dot').style.background = pulse ? 'var(--green)' : text==='PROCESSING' ? 'var(--amber)' : 'var(--green)';
+}
+
+function tick() {
+  const t = new Date();
+  el('clk').textContent = t.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+
+function showNotif(msg) {
+  const n = document.createElement('div');
+  n.className = 'notif';n.textContent = msg;
+  document.body.appendChild(n);
+  setTimeout(()=>n.remove(), 3000);
+}
+
+// ── INIT ──
+function initJarvis() {
+  const key = el('setup-key').value.trim();
+  if(!key.startsWith('gsk_')) {
+    // Also allow if already stored
+    if(!LS.get('jarvis_key')?.startsWith('gsk_')) {
+      alert('API Key inválida. Debe empezar con gsk_');
+      return;
+    }
+  } else {
+    LS.set('jarvis_key', key);
+  }
+  apiKey = LS.get('jarvis_key') || key;
+
+  const tg = el('setup-tgid').value.trim() || LS.get('tg_chat_id') || '';
+  if(tg) { tgChatId = tg; LS.set('tg_chat_id', tg); }
+
+  el('setup').style.display = 'none';
+  el('app').style.display = 'grid';
+
+  // Load data
+  loadWansoft();
+  setInterval(loadWansoft, 5 * 60 * 1000); // refresh every 5 min
+
+  // Clock
+  tick();
+  setInterval(tick, 1000);
+
+  // Init speech recognition
+  recognition = initRecognition();
+
+  // Welcome message
+  setTimeout(() => {
+    const hour = new Date().getHours();
+    const greeting = hour < 12 ? 'Buenos días' : hour < 18 ? 'Buenas tardes' : 'Buenas noches';
+    const msg = `${greeting}, Daniel. Sistema JARVIS inicializado. Presiona el reactor o el micrófono para hablar.`;
+    addMsg('jarvis', msg);
+    speak(msg);
+  }, 800);
+}
+
+// Boot — check for stored key
+window.addEventListener('DOMContentLoaded', () => {
+  // Reuse War Room key if available
+  const stored = LS.get('jarvis_key') || LS.get('apikey');
+  if(stored?.startsWith('gsk_')) {
+    el('setup-key').value = stored;
+    el('setup-tgid').value = LS.get('tg_chat_id') || '';
+  }
+
+  // Load voices async
+  if(window.speechSynthesis) {
+    window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+  }
+});
+</script>
+</body>
+</html>

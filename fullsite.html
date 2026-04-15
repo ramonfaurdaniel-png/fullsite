@@ -2451,7 +2451,7 @@ function resetAll() {
 // ============================================================
 function saveKey() {
   const key = document.getElementById('setup-key').value.trim();
-  if(!key.startsWith('gsk_')) { alert('Clave inválida. Debe empezar con gsk_  — obtenla gratis en console.groq.com'); return; }
+  if(!key) { alert('Clave inválida. Debe empezar con gsk_  — obtenla gratis en console.groq.com'); return; }
   LS.set('apikey', key);
   boot();
 }

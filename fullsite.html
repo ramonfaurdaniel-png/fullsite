@@ -2569,7 +2569,7 @@ Genera: 1 post de Google Business Profile (GBP) listo para publicar + 1 recomend
 
 
 // ============================================================
-// GROQ API — 100% GRATIS (google/gemini-2.0-flash-exp:free)
+// GROQ API — 100% GRATIS (llama-3.1-8b-instant)
 // ============================================================
 async function groqCall(systemPrompt, messages, maxTokens=800) {
   const apiKey = LS.get('apikey');
@@ -2583,7 +2583,7 @@ async function groqCall(systemPrompt, messages, maxTokens=800) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'google/gemini-2.0-flash-exp:free',
+      model: 'llama-3.1-8b-instant',
       max_tokens: maxTokens,
       messages: allMessages
     })

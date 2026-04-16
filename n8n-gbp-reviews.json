@@ -25,14 +25,14 @@
           "assignments": [
             {
               "id": "cfg-01",
-              "name": "GBP_ACCOUNT_ID",
-              "value": "accounts/TU_ACCOUNT_ID_AQUI",
+              "name": "PLACE_ID",
+              "value": "TU_PLACE_ID_AQUI",
               "type": "string"
             },
             {
               "id": "cfg-02",
-              "name": "GBP_LOCATION_ID",
-              "value": "locations/TU_LOCATION_ID_AQUI",
+              "name": "PLACES_API_KEY",
+              "value": "AIzaSyDyZtyCwA8gTOmJFcEjMqQDg8CSAMC2qNs",
               "type": "string"
             },
             {
@@ -56,14 +56,25 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [420, 300],
-      "notes": "EDITA ESTOS 4 VALORES:\n- GBP_ACCOUNT_ID: el que ves en localStorage gbp_account_id\n- GBP_LOCATION_ID: el que ves en localStorage gbp_location_id\n- SB_SERVICE_KEY: Settings → API → service_role key en Supabase"
+      "notes": "EDITA ESTOS VALORES:\n\n1. PLACE_ID → cómo encontrarlo:\n   - Ve a maps.google.com → busca 'AMALAY Coffee Market'\n   - Haz clic en el negocio → copia la URL\n   - Busca el segmento que empieza con '1s' después de '!1s': ése es el place_id\n   - Ejemplo: ChIJN1t_tDeuEmsRUsoyG83frY4\n   - Alternativa: abre Chrome DevTools en tu War Room, ejecuta:\n     fetch('https://places.googleapis.com/v1/places:searchText',{method:'POST',headers:{'Content-Type':'application/json','X-Goog-Api-Key':'AIzaSyDyZtyCwA8gTOmJFcEjMqQDg8CSAMC2qNs','X-Goog-FieldMask':'places.id,places.displayName'},body:JSON.stringify({textQuery:'AMALAY Coffee Market'})})\n     .then(r=>r.json()).then(console.log)\n\n2. PLACES_API_KEY → ya está prellenada (proyecto fullsite-amalay)\n   IMPORTANTE: primero habilita billing en console.cloud.google.com\n   (Places API requiere billing aunque tengas crédito gratis)\n\n3. SB_SERVICE_KEY → Settings → API → service_role key en Supabase"
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ 'https://mybusiness.googleapis.com/v4/' + $json.GBP_ACCOUNT_ID + '/' + $json.GBP_LOCATION_ID + '/reviews?orderBy=updateTime%20desc&pageSize=50' }}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "oAuth2Api",
+        "url": "={{ 'https://places.googleapis.com/v1/places/' + $json.PLACE_ID }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Goog-Api-Key",
+              "value": "={{ $json.PLACES_API_KEY }}"
+            },
+            {
+              "name": "X-Goog-FieldMask",
+              "value": "reviews,rating,userRatingCount,displayName"
+            }
+          ]
+        },
         "options": {
           "response": {
             "response": {
@@ -73,17 +84,11 @@
         }
       },
       "id": "a1b2c3d4-0003-0003-0003-000000000003",
-      "name": "GET Reviews (GBP API)",
+      "name": "GET Reviews (Places API)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [640, 300],
-      "credentials": {
-        "oAuth2Api": {
-          "id": "REEMPLAZA_CON_ID_CREDENCIAL_N8N",
-          "name": "Google Business Profile OAuth2"
-        }
-      },
-      "notes": "Credencial OAuth2 requerida en n8n:\n- Token URL: https://oauth2.googleapis.com/token\n- Auth URL: https://accounts.google.com/o/oauth2/v2/auth\n- Client ID: 305772129726-bkljrvm6f29gvj821tvk671iu3786i4l.apps.googleusercontent.com\n- Client Secret: (de Google Cloud Console)\n- Scope: https://www.googleapis.com/auth/business.manage\n- Autentica con monigp75@gmail.com"
+      "notes": "Places API (New) — no requiere OAuth2, solo API Key.\nDevuelve máximo 5 reseñas (límite de Google).\nNo requiere aprobación especial de Google.\n\nSi ves error 403 SERVICE_DISABLED:\n→ Habilita billing en console.cloud.google.com (necesario aunque tengas $200 de crédito gratis)\n→ El uso real es ~$0.017/request = ~$1/mes al ritmo de 2h"
     },
     {
       "parameters": {
@@ -113,14 +118,14 @@
     },
     {
       "parameters": {
-        "jsCode": "// ── Filtrar reseñas nuevas y formatearlas para Supabase ──────\n\n// Reseñas recibidas de GBP\nconst gbpResponse = $('GET Reviews (GBP API)').first().json;\n\nif (gbpResponse.error) {\n  const msg = gbpResponse.error.message || JSON.stringify(gbpResponse.error);\n  // Si es error de quota o permisos, loguear y detener sin fallar el workflow\n  if (msg.includes('PERMISSION_DENIED') || msg.includes('quota') || msg.includes('403')) {\n    console.log('[GBP] API restringida o quota agotada:', msg);\n    return []; // detiene el workflow limpiamente\n  }\n  throw new Error('GBP API error: ' + msg);\n}\n\nconst gbpReviews = gbpResponse.reviews || [];\n\n// IDs ya guardados en Supabase\nconst existingRows = $input.all();\nconst existingIds  = new Set(existingRows.map(r => r.json.review_id).filter(Boolean));\n\n// Mapeo estrellas\nconst STAR_MAP = { ONE: 1, TWO: 2, THREE: 3, FOUR: 4, FIVE: 5 };\n\n// Filtrar solo nuevas y formatear\nconst newReviews = gbpReviews\n  .filter(r => r.reviewId && !existingIds.has(r.reviewId))\n  .map(r => ({\n    review_id:    r.reviewId,\n    author:       r.reviewer?.displayName || 'Anónimo',\n    rating:       STAR_MAP[r.starRating]  || 5,\n    text:         r.comment              || '',\n    date:         r.createTime           || r.updateTime || new Date().toISOString(),\n    status:       r.reviewReply ? 'published' : 'pending',\n    draft_response:     '',\n    published_response: r.reviewReply?.comment || '',\n    location_id:  $('Config').first().json.GBP_LOCATION_ID\n  }));\n\nconsole.log(`[GBP Sync] Total GBP: ${gbpReviews.length} | Ya en SB: ${existingIds.size} | Nuevas: ${newReviews.length}`);\n\nreturn newReviews.map(r => ({ json: r }));"
+        "jsCode": "// ── Filtrar reseñas nuevas y formatearlas para Supabase ──────\n// Fuente: Places API (New) — formato diferente a GBP API v4\n\n// Respuesta de Places API\nconst placesResponse = $('GET Reviews (Places API)').first().json;\n\nif (placesResponse.error) {\n  const msg = placesResponse.error.message || JSON.stringify(placesResponse.error);\n  if (msg.includes('SERVICE_DISABLED') || msg.includes('PERMISSION_DENIED') || msg.includes('billing')) {\n    console.log('[Places] API deshabilitada o billing requerido:', msg);\n    return []; // detiene limpiamente\n  }\n  throw new Error('Places API error: ' + msg);\n}\n\n// Places API devuelve reviews en el campo 'reviews' (máx 5)\nconst placesReviews = placesResponse.reviews || [];\nconst placeId = $('Config').first().json.PLACE_ID;\n\n// IDs ya guardados en Supabase\nconst existingRows = $input.all();\nconst existingIds  = new Set(existingRows.map(r => r.json.review_id).filter(Boolean));\n\n// Normalizar formato Places API → esquema Supabase\nconst newReviews = placesReviews\n  .filter(r => {\n    // review_id: último segmento de r.name (\"places/{placeId}/reviews/{reviewId}\")\n    const rid = r.name ? r.name.split('/').pop() : null;\n    return rid && !existingIds.has(rid);\n  })\n  .map(r => {\n    const rid = r.name.split('/').pop();\n    return {\n      review_id:    rid,\n      author:       r.authorAttribution?.displayName || 'Anónimo',\n      rating:       r.rating || 5,                        // ya es entero 1-5\n      text:         r.text?.text || '',\n      date:         r.publishTime || new Date().toISOString(),\n      status:       'pending',\n      draft_response:     '',\n      published_response: '',\n      location_id:  'places/' + placeId\n    };\n  });\n\nconsole.log(`[Places Sync] Total Places: ${placesReviews.length} | Ya en SB: ${existingIds.size} | Nuevas: ${newReviews.length}`);\n\nreturn newReviews.map(r => ({ json: r }));"
       },
       "id": "a1b2c3d4-0005-0005-0005-000000000005",
       "name": "Filtrar nuevas + formatear",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [1080, 300],
-      "notes": "Compara GBP vs Supabase. Solo inserta las reseñas que NO existen en la tabla.\nSi la API de GBP devuelve PERMISSION_DENIED, detiene el workflow sin error."
+      "notes": "Normaliza formato Places API → Supabase.\n\nDiferencias clave vs GBP API:\n- review_id: último segmento de r.name (no r.reviewId)\n- author: r.authorAttribution.displayName (no r.reviewer.displayName)\n- rating: ya es número entero 1-5 (no ONE/TWO/THREE...)\n- text: r.text.text (no r.comment)\n- date: r.publishTime (no r.createTime)\n- No hay reply en Places API → status siempre 'pending'"
     },
     {
       "parameters": {
@@ -207,10 +212,10 @@
     },
     "Config": {
       "main": [
-        [{ "node": "GET Reviews (GBP API)", "type": "main", "index": 0 }]
+        [{ "node": "GET Reviews (Places API)", "type": "main", "index": 0 }]
       ]
     },
-    "GET Reviews (GBP API)": {
+    "GET Reviews (Places API)": {
       "main": [
         [{ "node": "GET IDs existentes (Supabase)", "type": "main", "index": 0 }]
       ]
@@ -243,9 +248,10 @@
   "tags": [
     { "name": "gbp" },
     { "name": "supabase" },
-    { "name": "amalay" }
+    { "name": "amalay" },
+    { "name": "places-api" }
   ],
-  "versionId": "1.0.0",
+  "versionId": "1.1.0",
   "meta": {
     "templateCredsSetupCompleted": false,
     "instanceId": "fullsite-amalay"

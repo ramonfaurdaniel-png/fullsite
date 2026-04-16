@@ -44,7 +44,7 @@
             {
               "id": "cfg-04",
               "name": "SB_SERVICE_KEY",
-              "value": "TU_SUPABASE_SERVICE_ROLE_KEY_AQUI",
+              "value": "={{ $env.SB_SERVICE_KEY }}",
               "type": "string"
             }
           ]

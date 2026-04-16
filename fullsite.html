@@ -399,6 +399,7 @@ hr.div{border:none;border-top:1px solid var(--border);margin:16px 0;}
       <button class="ni" onclick="showTab('reportes',this)">◈ Reportes</button>
       <button class="ni" onclick="showTab('wansoft',this)">📊 Wansoft Live</button>
       <button class="ni" onclick="showTab('resenas',this)">⭐ Reseñas GBP</button>
+      <button class="ni" onclick="showTab('graph',this)">⬡ Grafo</button>
       <div class="nl" style="margin-top:16px">Agentes</div>
       <button class="ni" onclick="openAgent('contenido')">· Contenido</button>
       <button class="ni" onclick="openAgent('reportes')">· Reportes</button>
@@ -418,6 +419,7 @@ hr.div{border:none;border-top:1px solid var(--border);margin:16px 0;}
       <div id="tab-reportes" style="display:none"></div>
       <div id="tab-wansoft" style="display:none"></div>
       <div id="tab-resenas" style="display:none"></div>
+      <div id="tab-graph"   style="display:none"></div>
     </main>
     <!-- Chat panel -->
     <div class="cp" id="cp">
@@ -2010,7 +2012,7 @@ Usa 1-3 agentes según necesites. Ejemplos de id válidos: contenido, reportes, 
 // ============================================================
 // TAB RENDERING
 // ============================================================
-const TABS = ['warroom','wansoft','clientes','tareas','contenido','reportes','resenas'];
+const TABS = ['warroom','wansoft','clientes','tareas','contenido','reportes','resenas','graph'];
 let currentTab = 'warroom';
 
 function showTab(id, btn) {
@@ -2022,7 +2024,7 @@ function showTab(id, btn) {
 }
 
 function renderTab(id) {
-  const fns = { warroom:renderWarRoom, wansoft:renderWansoft, clientes:renderClientes, tareas:renderTareas, contenido:renderContenido, reportes:renderReportes, resenas:renderResenas };
+  const fns = { warroom:renderWarRoom, wansoft:renderWansoft, clientes:renderClientes, tareas:renderTareas, contenido:renderContenido, reportes:renderReportes, resenas:renderResenas, graph:renderGraph };
   if(fns[id]) fns[id]();
 }
 
@@ -3502,6 +3504,135 @@ function removeManualReview(reviewId) {
   delete reviewDrafts[reviewId];
   _saveDrafts();
   renderResenas();
+}
+
+// ============================================================
+// GRAPH VIEW — graphify-out/graph.json
+// ============================================================
+let _graphInstance = null;
+let _graphAllNodes = [];
+let _graphAllLinks = [];
+
+async function renderGraph() {
+  const el = document.getElementById('tab-graph');
+  if (!el) return;
+
+  el.innerHTML = `
+    <p class="ps">GRAFO DE CÓDIGO · fullsite</p>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+      <input id="graph-search" type="text" placeholder="Buscar función, archivo, comunidad…"
+        style="flex:1;min-width:180px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 12px;font-family:'JetBrains Mono',monospace;font-size:11px;"
+        oninput="graphFilter(this.value)">
+      <button onclick="graphReset()" style="background:none;border:1px solid var(--border2);color:var(--muted);border-radius:5px;padding:5px 12px;font-size:10px;font-family:'JetBrains Mono',monospace;cursor:pointer;">Reset</button>
+      <span id="graph-count" style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--dim)"></span>
+    </div>
+    <div id="graph-wrap" style="border:1px solid var(--border);border-radius:10px;overflow:hidden;height:calc(100vh - 210px);background:#05070b;position:relative;">
+      <div id="graph-tooltip" style="position:absolute;background:rgba(5,7,11,.92);color:#e0e0e0;font-family:'JetBrains Mono',monospace;font-size:10px;padding:8px 11px;border-radius:7px;pointer-events:none;display:none;z-index:10;max-width:280px;line-height:1.7;border:1px solid rgba(255,255,255,.12)"></div>
+      <div id="graph-info" style="position:absolute;top:10px;right:12px;font-family:'JetBrains Mono',monospace;font-size:9px;color:rgba(255,255,255,.25);line-height:1.8;pointer-events:none">
+        hover → info · click → zoom · scroll → zoom
+      </div>
+    </div>`;
+
+  // Load force-graph library once
+  if (!window.ForceGraph) {
+    await new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = 'https://unpkg.com/force-graph';
+      s.onload = res; s.onerror = rej;
+      document.head.appendChild(s);
+    });
+  }
+
+  // Load graph data
+  let data;
+  try {
+    const r = await fetch('graphify-out/graph.json');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    data = await r.json();
+  } catch(e) {
+    document.getElementById('graph-wrap').innerHTML =
+      `<div style="color:var(--amber);font-family:'JetBrains Mono',monospace;font-size:11px;padding:50px;text-align:center;line-height:2">
+        ⚠️ No se pudo cargar <code>graphify-out/graph.json</code><br>
+        <span style="opacity:.6;font-size:10px">Sirve el War Room desde <strong>http://localhost</strong> — fetch no funciona en file://</span>
+       </div>`;
+    return;
+  }
+
+  _graphAllNodes = data.nodes || [];
+  _graphAllLinks = data.links || data.edges || [];
+
+  const COLORS = [
+    '#4285f4','#34a853','#ea4335','#fbbc04','#c792ea',
+    '#89ddff','#ff6ab2','#82aaff','#f78c6c','#c3e88d',
+    '#ffcb6b','#e1acff','#b2ccd6','#7986cb','#4db6ac','#ff8a65'
+  ];
+  const nodeColor = n => COLORS[n.community % COLORS.length];
+
+  const container = document.getElementById('graph-wrap');
+  const tooltip   = document.getElementById('graph-tooltip');
+
+  _graphInstance = ForceGraph()(container)
+    .graphData({ nodes: _graphAllNodes, links: _graphAllLinks })
+    .nodeId('id')
+    .nodeColor(nodeColor)
+    .nodeRelSize(3)
+    .nodeVal(n => (n.community === 0 ? 4 : 2))
+    .backgroundColor('#05070b')
+    .linkColor(() => 'rgba(255,255,255,0.07)')
+    .linkWidth(0.5)
+    .onNodeHover(node => {
+      tooltip.style.display = node ? 'block' : 'none';
+      if (node) tooltip.innerHTML =
+        `<strong style="color:#fff">${node.label}</strong><br>
+         <span style="color:#888">${node.source_file}</span>
+         <span style="color:#555"> · ${node.source_location}</span><br>
+         <span style="color:${nodeColor(node)}">comunidad ${node.community}</span>`;
+    })
+    .onNodeClick(node => {
+      _graphInstance.centerAt(node.x, node.y, 500);
+      _graphInstance.zoom(4, 500);
+    });
+
+  container.addEventListener('mousemove', e => {
+    const rc = container.getBoundingClientRect();
+    const x = e.clientX - rc.left + 14, y = e.clientY - rc.top + 14;
+    tooltip.style.left = (x + 280 > rc.width ? x - 300 : x) + 'px';
+    tooltip.style.top  = (y + 80  > rc.height ? y - 90  : y) + 'px';
+  });
+
+  _graphInstance.d3Force('charge').strength(-350);
+  _graphInstance.d3Force('link').distance(90);
+  setTimeout(() => _graphInstance?.zoomToFit(900, 60), 1400);
+
+  document.getElementById('graph-count').textContent =
+    `${_graphAllNodes.length} nodos · ${_graphAllLinks.length} enlaces · ${new Set(_graphAllNodes.map(n=>n.community)).size} comunidades`;
+}
+
+function graphFilter(q) {
+  if (!_graphInstance) return;
+  q = q.trim().toLowerCase();
+  if (!q) { graphReset(); return; }
+  const filtered = _graphAllNodes.filter(n =>
+    n.label.toLowerCase().includes(q) ||
+    n.source_file.toLowerCase().includes(q) ||
+    String(n.community) === q
+  );
+  const ids = new Set(filtered.map(n => n.id));
+  const filtLinks = _graphAllLinks.filter(l =>
+    ids.has(l.source?.id ?? l.source) && ids.has(l.target?.id ?? l.target)
+  );
+  _graphInstance.graphData({ nodes: filtered, links: filtLinks });
+  document.getElementById('graph-count').textContent =
+    `${filtered.length} nodos · ${filtLinks.length} enlaces`;
+}
+
+function graphReset() {
+  if (!_graphInstance) return;
+  _graphInstance.graphData({ nodes: _graphAllNodes, links: _graphAllLinks });
+  document.getElementById('graph-search').value = '';
+  document.getElementById('graph-count').textContent =
+    `${_graphAllNodes.length} nodos · ${_graphAllLinks.length} enlaces · ${new Set(_graphAllNodes.map(n=>n.community)).size} comunidades`;
+  setTimeout(() => _graphInstance?.zoomToFit(600, 60), 100);
 }
 
 // ============================================================

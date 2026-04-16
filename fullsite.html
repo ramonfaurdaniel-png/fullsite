@@ -3018,16 +3018,69 @@ async function fetchGBPData() {
 
 async function gbpRefresh() {
   const btn = document.getElementById('gbp-refresh-btn');
-  const remaining = Math.ceil((GBP_DEBOUNCE_MS - (Date.now() - _gbpLastFetch)) / 1000);
-  if (remaining > 0) {
-    if (btn) { btn.textContent = `↻ espera ${remaining}s`; btn.disabled = true; }
-    setTimeout(() => { if (btn) { btn.textContent = '↻ Actualizar'; btn.disabled = false; } }, remaining * 1000);
-    return;
-  }
   if (btn) { btn.textContent = '↻ Cargando···'; btn.disabled = true; }
-  await fetchGBPData();
+  await fetchResenasFromSupabase();
   await renderResenas();
-  // btn re-enabled by renderResenas rebuilding the DOM
+}
+
+// ── Supabase read — fuente principal de reseñas ─────────────
+// n8n escribe aquí cada 2h. El browser NUNCA llama a Google para leer.
+const GBP_RATING_MAP = ['', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE'];
+
+async function fetchResenasFromSupabase() {
+  LS.set('gbp_fetch_error', '');
+  try {
+    const r = await fetch(
+      `${SB_URL}/rest/v1/reviews?order=date.desc&limit=50`,
+      { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY } }
+    );
+    if (!r.ok) throw new Error('Supabase HTTP ' + r.status);
+    const rows = await r.json();
+    if (!Array.isArray(rows)) throw new Error('Respuesta inesperada de Supabase');
+
+    // Mapear formato Supabase → formato interno gbpReviews
+    gbpReviews = rows.map(row => ({
+      reviewId:    row.review_id,
+      reviewer:    { displayName: row.author },
+      comment:     row.text,
+      starRating:  GBP_RATING_MAP[row.rating] || 'FIVE',
+      updateTime:  row.date,
+      reviewReply: row.published_response ? { comment: row.published_response } : null,
+      _sbStatus:   row.status,
+      _sbId:       row.id
+    }));
+
+    // Sincronizar draft_response de Supabase → reviewDrafts local
+    rows.forEach(row => {
+      const existing = reviewDrafts[row.review_id];
+      if (row.draft_response && (!existing || existing.status === 'draft')) {
+        reviewDrafts[row.review_id] = { text: row.draft_response, status: row.status };
+      }
+    });
+
+    LS.set('gbp_reviews_cache', JSON.stringify(gbpReviews));
+    LS.set('gbp_reviews_updated', new Date().toISOString());
+  } catch(e) {
+    console.error('[GBP] Supabase fetch:', e);
+    LS.set('gbp_fetch_error', 'Error leyendo reseñas: ' + e.message);
+  }
+}
+
+// Guardar draft aprobado en Supabase (anon key puede UPDATE)
+async function _saveDraftToSupabase(reviewId, text, status) {
+  try {
+    const rv = gbpReviews.find(r => r.reviewId === reviewId);
+    if (!rv) return;
+    await fetch(`${SB_URL}/rest/v1/reviews?review_id=eq.${encodeURIComponent(reviewId)}`, {
+      method: 'PATCH',
+      headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        draft_response: text,
+        status,
+        ...(status === 'published' ? { published_response: text } : {})
+      })
+    });
+  } catch(e) { console.warn('[GBP] Supabase PATCH draft:', e.message); }
 }
 
 async function fetchGBPReviews() {
@@ -3138,6 +3191,7 @@ function approveDraft(reviewId) {
   reviewDrafts[reviewId] = { text, status: 'approved' };
   _saveDrafts();
   _saveReviewToSupabase(reviewId, text, 'approved');
+  _saveDraftToSupabase(reviewId, text, 'approved');
   const badge = document.getElementById('status-' + reviewId);
   if (badge) { badge.textContent = '✓ Aprobado'; badge.style.color = 'var(--green)'; }
   const pubBtn = document.getElementById('pub-' + reviewId);
@@ -3169,6 +3223,7 @@ async function publishReply(reviewId) {
     reviewDrafts[reviewId] = { text, status: 'published' };
     _saveDrafts();
     _saveReviewToSupabase(reviewId, text, 'published');
+    _saveDraftToSupabase(reviewId, text, 'published');
     renderResenas();
   } catch(e) {
     if (pubBtn) { pubBtn.disabled = false; pubBtn.textContent = 'Publicar en GBP →'; }
@@ -3238,9 +3293,10 @@ async function renderResenas() {
 
   _loadDrafts();
 
-  // Restore cached reviews (API + manual)
+  // Carga desde Supabase si la lista está vacía (primer render del tab)
   if (!gbpReviews.length) {
     try { gbpReviews = JSON.parse(LS.get('gbp_reviews_cache') || '[]'); } catch {}
+    if (!gbpReviews.length) await fetchResenasFromSupabase();
   }
   // Merge manual reviews (avoid duplicates)
   try {
@@ -3281,7 +3337,7 @@ async function renderResenas() {
     html += `<div class="gbp-status-bar">
       <span class="dot dot-on"></span>
       <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--green)">Conectado · monigp75@gmail.com</span>
-      ${updStr ? `<span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim)">· ${updStr}</span>` : ''}
+      <span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim)">· reseñas vía Supabase${updStr ? ' · ' + updStr : ''}</span>
       <button class="gbp-refresh-btn" id="gbp-refresh-btn" onclick="gbpRefresh()">↻ Actualizar</button>
       <button class="gbp-refresh-btn" onclick="gbpLogout()" style="margin-left:4px">Desconectar</button>
     </div>`;

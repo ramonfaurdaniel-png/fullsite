@@ -2892,66 +2892,92 @@ function showAgentBubble(agentId, icon, result) {
 // GOOGLE BUSINESS PROFILE — OAuth2 + Reviews API
 // ============================================================
 
-const GBP_STARS = { ONE:1, TWO:2, THREE:3, FOUR:4, FIVE:5 };
-const GBP_STAR_EMOJI = n => '★'.repeat(n) + '☆'.repeat(5-n);
+// ============================================================
+// GBP REVIEWS — OAuth2 (GIS token flow) + fallback manual
+// Client ID pre-configurado para proyecto fullsite-amalay
+// ============================================================
 
-let gbpToken = null;
+const GBP_CLIENT_ID = '305772129726-bkljrvm6f29gvj821tvk671iu3786i4l.apps.googleusercontent.com';
+const GBP_STARS     = { ONE:1, TWO:2, THREE:3, FOUR:4, FIVE:5 };
+const GBP_STAR_EMOJI = n => '★'.repeat(n) + '☆'.repeat(5-n);
+const GBP_SB_H = () => ({ apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', Prefer: 'return=representation' });
+
+let gbpToken     = sessionStorage.getItem('gbp_token') || null;
 let gbpAccountId = LS.get('gbp_account_id') || null;
 let gbpLocationId = LS.get('gbp_location_id') || null;
-let gbpReviews = [];
-let reviewDrafts = {};   // reviewId → draft string
-let reviewGenerating = {}; // reviewId → true while generating
+let gbpReviews    = [];
+let reviewDrafts  = {};   // reviewId → { text, status:'draft'|'approved'|'published' }
+let reviewGenerating = {};
 
 let _gbpTokenClient = null;
+let _gbpInitAttempts = 0;
 
-// Init GIS after page load
+// Auto-save known client ID on first load
+if (!LS.get('gbp_client_id')) LS.set('gbp_client_id', GBP_CLIENT_ID);
+
+// Init GIS — retries until library loads (async script)
 function initGBP() {
-  const clientId = LS.get('gbp_client_id');
-  if (!clientId || !window.google?.accounts?.oauth2) return;
+  if (!window.google?.accounts?.oauth2) {
+    if (_gbpInitAttempts++ < 10) setTimeout(initGBP, 600);
+    return;
+  }
   _gbpTokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: clientId,
+    client_id: GBP_CLIENT_ID,
     scope: 'https://www.googleapis.com/auth/business.manage',
     callback: async (resp) => {
-      if (resp.error) { alert('Error OAuth: ' + resp.error); return; }
+      if (resp.error) {
+        console.error('[GBP] OAuth error:', resp.error, resp.error_description);
+        LS.set('gbp_fetch_error', 'OAuth: ' + (resp.error_description || resp.error));
+        renderResenas();
+        return;
+      }
       gbpToken = resp.access_token;
       sessionStorage.setItem('gbp_token', gbpToken);
+      LS.set('gbp_fetch_error', '');
       renderResenas();
       await fetchGBPData();
       renderResenas();
     }
   });
-  // Restore token from session
-  const saved = sessionStorage.getItem('gbp_token');
-  if (saved) gbpToken = saved;
 }
 
 function gbpLogin() {
-  const clientId = LS.get('gbp_client_id');
-  if (!clientId) { alert('Primero guarda tu Client ID OAuth en el campo de abajo.'); return; }
-  if (!_gbpTokenClient) { initGBP(); }
-  if (!_gbpTokenClient) { alert('Google Identity Services aún no cargó. Espera un momento.'); return; }
-  _gbpTokenClient.requestAccessToken({ prompt: 'consent' });
+  if (!_gbpTokenClient) {
+    _gbpInitAttempts = 0;
+    initGBP();
+    // Give GIS 800ms to load then retry login
+    setTimeout(() => {
+      if (_gbpTokenClient) _gbpTokenClient.requestAccessToken({ prompt: 'select_account' });
+      else LS.set('gbp_fetch_error', 'Google Identity Services no cargó. Verifica tu conexión y que el archivo se sirve desde http://localhost.');
+      renderResenas();
+    }, 800);
+    return;
+  }
+  _gbpTokenClient.requestAccessToken({ prompt: 'select_account' });
 }
 
-function saveGBPClientId() {
-  const val = document.getElementById('gbp-client-id-input')?.value?.trim();
-  if (!val) return;
-  LS.set('gbp_client_id', val);
-  initGBP();
+function gbpLogout() {
+  gbpToken = null;
+  sessionStorage.removeItem('gbp_token');
+  LS.set('gbp_fetch_error', '');
+  LS.set('gbp_api_error', '');
   renderResenas();
 }
 
+// ── Fetch chain: accounts → locations → reviews ────────────
 async function fetchGBPData() {
   if (!gbpToken) return;
+  LS.set('gbp_fetch_error', '');
   try {
     // 1. Accounts
     const accR = await fetch('https://mybusinessaccountmanagement.googleapis.com/v1/accounts',
       { headers: { Authorization: 'Bearer ' + gbpToken } });
+    if (accR.status === 401) { gbpToken = null; sessionStorage.removeItem('gbp_token'); renderResenas(); return; }
     const accD = await accR.json();
-    if (accD.error) throw new Error(accD.error.message);
+    if (accD.error) throw new Error('Accounts: ' + accD.error.message);
     const accs = accD.accounts || [];
-    if (!accs.length) throw new Error('No se encontraron cuentas GBP.');
-    gbpAccountId = accs[0].name;
+    if (!accs.length) throw new Error('No se encontraron cuentas GBP asociadas a este token.');
+    gbpAccountId = accs[0].name;  // "accounts/123456"
     LS.set('gbp_account_id', gbpAccountId);
 
     // 2. Locations
@@ -2959,34 +2985,32 @@ async function fetchGBPData() {
       `https://mybusinessbusinessinformation.googleapis.com/v1/${gbpAccountId}/locations?readMask=name,title`,
       { headers: { Authorization: 'Bearer ' + gbpToken } });
     const locD = await locR.json();
-    if (locD.error) throw new Error(locD.error.message);
+    if (locD.error) throw new Error('Locations: ' + locD.error.message);
     const locs = locD.locations || [];
-    if (!locs.length) throw new Error('No se encontraron ubicaciones.');
+    if (!locs.length) throw new Error('No se encontraron ubicaciones GBP.');
     const amLoc = locs.find(l => /amalay/i.test(l.title)) || locs[0];
-    gbpLocationId = amLoc.name;
+    gbpLocationId = amLoc.name;  // "locations/123456"
     LS.set('gbp_location_id', gbpLocationId);
 
-    // 3. Reviews
+    // 3. Reviews (may be restricted)
     await fetchGBPReviews();
   } catch(e) {
+    console.error('[GBP] fetchGBPData:', e);
     LS.set('gbp_fetch_error', e.message);
-    renderResenas();
   }
 }
 
 async function fetchGBPReviews() {
   if (!gbpToken || !gbpAccountId || !gbpLocationId) return;
-  LS.set('gbp_fetch_error', '');
   try {
-    // Reviews still use v4 endpoint
-    const r = await fetch(
-      `https://mybusiness.googleapis.com/v4/${gbpAccountId}/${gbpLocationId}/reviews?orderBy=updateTime desc&pageSize=20`,
-      { headers: { Authorization: 'Bearer ' + gbpToken } });
+    const url = `https://mybusiness.googleapis.com/v4/${gbpAccountId}/${gbpLocationId}/reviews?orderBy=updateTime%20desc&pageSize=20`;
+    const r = await fetch(url, { headers: { Authorization: 'Bearer ' + gbpToken } });
     const d = await r.json();
     if (d.error) {
-      // API not yet approved — store error, keep showing panel
+      // Restricted API — store error and keep panel usable
       LS.set('gbp_api_error', d.error.message);
       LS.set('gbp_reviews_updated', new Date().toISOString());
+      console.warn('[GBP] Reviews API restricted:', d.error.message);
       return;
     }
     LS.set('gbp_api_error', '');
@@ -2995,15 +3019,29 @@ async function fetchGBPReviews() {
     LS.set('gbp_reviews_updated', new Date().toISOString());
   } catch(e) {
     LS.set('gbp_api_error', e.message);
+    console.error('[GBP] fetchReviews:', e);
   }
 }
 
-async function generateReviewDraft(review) {
-  const stars = GBP_STARS[review.starRating] || 5;
-  const positive = stars >= 4;
-  const author = review.reviewer?.displayName || 'cliente';
-  const comment = (review.comment || '').slice(0, 500);
+// ── Draft management ────────────────────────────────────────
+function _loadDrafts() {
+  try { Object.assign(reviewDrafts, JSON.parse(LS.get('gbp_drafts') || '{}')); } catch {}
+}
+function _saveDrafts() {
+  LS.set('gbp_drafts', JSON.stringify(reviewDrafts));
+}
+function updateDraftText(reviewId, text) {
+  if (!reviewDrafts[reviewId]) reviewDrafts[reviewId] = { text: '', status: 'draft' };
+  reviewDrafts[reviewId].text = text;
+  _saveDrafts();
+}
 
+// ── AI draft generation ─────────────────────────────────────
+async function generateReviewDraft(review) {
+  const stars   = GBP_STARS[review.starRating] || 5;
+  const positive = stars >= 4;
+  const author  = review.reviewer?.displayName || review._author || 'cliente';
+  const comment = (review.comment || review._comment || '').slice(0, 500);
   const prompt = `Genera una respuesta SEO-optimizada para esta reseña de Google de AMALAY Coffee & Market en Plaza Duendes, San Pedro Garza García.
 
 RESEÑA:
@@ -3011,248 +3049,368 @@ RESEÑA:
 - Estrellas: ${stars}/5
 - Comentario: "${comment || '(sin comentario)'}"
 
-REGLAS:
-1. Menciona "AMALAY Coffee & Market" al menos 1 vez
-2. Incluye al menos 1 de estas keywords: "brunch San Pedro Garza García", "Plaza Duendes", "terraza Monterrey", "desayuno San Pedro"
-3. ${positive ? 'Es positiva: saludo por nombre → agradecimiento específico → keyword SEO → invitación → "¡Te esperamos pronto! — Equipo AMALAY"' : 'Es negativa: empatía → reconocimiento sin excusas → "WhatsApp 81 8254 3303" → keyword → compromiso de mejora — Equipo AMALAY'}
+REGLAS OBLIGATORIAS:
+1. Menciona "AMALAY Coffee & Market" al menos 1 vez.
+2. Incluye al menos 1 keyword: "brunch San Pedro Garza García", "Plaza Duendes", "terraza Monterrey", "desayuno San Pedro".
+3. ${positive
+    ? 'POSITIVA: saludo por nombre → agradecimiento específico → keyword SEO → invitación → "¡Te esperamos pronto! — Equipo AMALAY"'
+    : 'NEGATIVA: empatía → reconocimiento sin excusas → "WhatsApp 81 8254 3303" → keyword → compromiso de mejora — Equipo AMALAY'}
 4. 60-120 palabras. Tono cálido, regio, auténtico. Voz de Monica (la dueña).
 5. Si mencionan platillo o empleado (Oscar, Omar, Héctor), referéncialo.
 6. NUNCA respuesta genérica.
 
-Responde SOLO con el texto de la respuesta, sin comillas ni explicación adicional.`;
-
+Responde SOLO con el texto listo para publicar, sin comillas ni explicación.`;
   try {
-    const r = await groqCall(null, [{ role: 'user', content: prompt }], 350);
+    const r = await groqCall(null, [{ role:'user', content:prompt }], 350);
     return r?.trim() || '';
   } catch { return ''; }
 }
 
 async function regenDraft(reviewId) {
-  const review = gbpReviews.find(r => r.reviewId === reviewId);
+  const review = gbpReviews.find(r => r.reviewId === reviewId)
+    || (JSON.parse(LS.get('gbp_manual_reviews') || '[]')).find(r => r.reviewId === reviewId);
   if (!review) return;
-  const ta = document.getElementById('rta-' + reviewId);
+  const ta  = document.getElementById('rta-' + reviewId);
   const btn = document.getElementById('regen-' + reviewId);
-  if (ta) ta.value = '···';
+  if (ta)  ta.value  = '···';
   if (btn) btn.disabled = true;
   reviewGenerating[reviewId] = true;
   const draft = await generateReviewDraft(review);
   reviewGenerating[reviewId] = false;
-  reviewDrafts[reviewId] = draft;
-  if (ta) ta.value = draft;
+  reviewDrafts[reviewId] = { text: draft, status: 'draft' };
+  _saveDrafts();
+  if (ta)  ta.value  = draft;
   if (btn) btn.disabled = false;
 }
 
-async function publishReply(reviewId) {
-  const draft = (reviewDrafts[reviewId] || document.getElementById('rta-' + reviewId)?.value || '').trim();
-  if (!draft) { alert('Escribe o genera una respuesta primero.'); return; }
-  const btn = document.getElementById('pub-' + reviewId);
-  if (btn) { btn.disabled = true; btn.textContent = 'Publicando···'; }
+function copyReply(reviewId) {
+  const text = reviewDrafts[reviewId]?.text
+    || document.getElementById('rta-' + reviewId)?.value || '';
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copy-' + reviewId);
+    if (btn) { btn.textContent = '✓ Copiado'; setTimeout(() => { btn.textContent = '⎘ Copiar'; }, 1800); }
+    // Mark as approved locally
+    if (!reviewDrafts[reviewId]) reviewDrafts[reviewId] = { text, status:'draft' };
+    reviewDrafts[reviewId].status = 'approved';
+    _saveDrafts();
+    _saveReviewToSupabase(reviewId, text, 'draft_copied');
+  }).catch(() => {
+    // Fallback for older browsers
+    const ta = document.getElementById('rta-' + reviewId);
+    if (ta) { ta.select(); document.execCommand('copy'); }
+  });
+}
 
-  const reviewName = `${gbpAccountId}/${gbpLocationId}/reviews/${reviewId}`;
+function approveDraft(reviewId) {
+  const text = document.getElementById('rta-' + reviewId)?.value?.trim() || '';
+  if (!text) return;
+  reviewDrafts[reviewId] = { text, status: 'approved' };
+  _saveDrafts();
+  _saveReviewToSupabase(reviewId, text, 'approved');
+  const badge = document.getElementById('status-' + reviewId);
+  if (badge) { badge.textContent = '✓ Aprobado'; badge.style.color = 'var(--green)'; }
+  const pubBtn = document.getElementById('pub-' + reviewId);
+  if (pubBtn) pubBtn.disabled = false;
+}
+
+async function publishReply(reviewId) {
+  const entry = reviewDrafts[reviewId];
+  const text  = entry?.text || document.getElementById('rta-' + reviewId)?.value?.trim() || '';
+  if (!text) { alert('Genera o escribe una respuesta primero.'); return; }
+
+  const pubBtn = document.getElementById('pub-' + reviewId);
+  if (pubBtn) { pubBtn.disabled = true; pubBtn.textContent = 'Publicando···'; }
+
   try {
+    const reviewName = `${gbpAccountId}/${gbpLocationId}/reviews/${reviewId}`;
     const r = await fetch(`https://mybusiness.googleapis.com/v4/${reviewName}/reply`, {
       method: 'PUT',
       headers: { Authorization: 'Bearer ' + gbpToken, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ comment: draft })
+      body: JSON.stringify({ comment: text })
     });
     const d = await r.json();
     if (d.error) throw new Error(d.error.message);
 
-    // Update local state
+    // Success — update local state
     const rv = gbpReviews.find(r => r.reviewId === reviewId);
-    if (rv) rv.reviewReply = { comment: draft, updateTime: new Date().toISOString() };
+    if (rv) rv.reviewReply = { comment: text, updateTime: new Date().toISOString() };
     LS.set('gbp_reviews_cache', JSON.stringify(gbpReviews));
-
-    // Save to Supabase agent_memory
-    try {
-      const SB_H2 = { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', Prefer: 'return=representation' };
-      await fetch(`${SB_URL}/rest/v1/agent_memory`, {
-        method: 'POST', headers: SB_H2,
-        body: JSON.stringify({
-          agent_id: 'reviews',
-          content: `Respuesta publicada GBP · ${rv?.reviewer?.displayName || reviewId} · ${GBP_STAR_EMOJI(GBP_STARS[rv?.starRating]||5)}: ${draft.slice(0,300)}`,
-          salience: 1.0, sector: 'gbp_reply', mission_context: 'auto_reply',
-          keywords: 'reseña,gbp,respuesta,amalay', client: 'AMALAY'
-        })
-      });
-    } catch {}
-
+    reviewDrafts[reviewId] = { text, status: 'published' };
+    _saveDrafts();
+    _saveReviewToSupabase(reviewId, text, 'published');
     renderResenas();
   } catch(e) {
-    if (btn) { btn.disabled = false; btn.textContent = 'Aprobar y publicar →'; }
-    const apiErr = LS.get('gbp_api_error');
-    if (apiErr || e.message.includes('permission') || e.message.includes('403')) {
-      // API not yet approved — save draft locally
-      reviewDrafts[reviewId] = draft;
-      LS.set('gbp_drafts', JSON.stringify(reviewDrafts));
-      const card = document.getElementById('rcard-' + reviewId);
-      if (card) {
-        const note = card.querySelector('.gbp-draft-saved');
-        if (!note) {
-          const d2 = document.createElement('div');
-          d2.className = 'gbp-draft-saved';
-          d2.style.cssText = 'font-family:JetBrains Mono,monospace;font-size:9px;color:var(--amber);margin-top:6px;';
-          d2.textContent = '⏳ Draft guardado — se publicará cuando Google apruebe el acceso a la API.';
-          card.appendChild(d2);
-        }
-      }
+    if (pubBtn) { pubBtn.disabled = false; pubBtn.textContent = 'Publicar en GBP →'; }
+    const isRestricted = e.message.includes('PERMISSION_DENIED') || e.message.includes('403')
+      || e.message.includes('not approved') || !!LS.get('gbp_api_error');
+    if (isRestricted) {
+      reviewDrafts[reviewId] = { text, status: 'approved' };
+      _saveDrafts();
+      _saveReviewToSupabase(reviewId, text, 'approved');
+      const badge = document.getElementById('status-' + reviewId);
+      if (badge) { badge.textContent = '⏳ Draft guardado — API pendiente'; badge.style.color = 'var(--amber)'; }
+      if (pubBtn) pubBtn.textContent = 'Publicar en GBP →';
     } else {
       alert('Error al publicar: ' + e.message);
     }
   }
 }
 
+async function _saveReviewToSupabase(reviewId, text, status) {
+  try {
+    const rv = gbpReviews.find(r => r.reviewId === reviewId)
+      || (JSON.parse(LS.get('gbp_manual_reviews') || '[]')).find(r => r.reviewId === reviewId);
+    await fetch(`${SB_URL}/rest/v1/agent_memory`, {
+      method: 'POST', headers: GBP_SB_H(),
+      body: JSON.stringify({
+        agent_id: 'reviews',
+        content: `GBP Review Reply [${status}] · ${rv?.reviewer?.displayName || rv?._author || reviewId} · ${GBP_STAR_EMOJI(GBP_STARS[rv?.starRating]||5)}: ${text.slice(0,300)}`,
+        salience: 1.0, sector: 'gbp_reply', mission_context: status,
+        keywords: 'reseña,gbp,respuesta,amalay', client: 'AMALAY'
+      })
+    });
+  } catch(e) { console.warn('[GBP] Supabase save failed:', e.message); }
+}
+
+// ── Manual review input ─────────────────────────────────────
+function addManualReview() {
+  const author  = document.getElementById('mr-author')?.value?.trim() || 'Anónimo';
+  const stars   = parseInt(document.getElementById('mr-stars')?.value || '5');
+  const comment = document.getElementById('mr-comment')?.value?.trim() || '';
+  if (!comment && stars >= 4) { alert('Escribe el texto de la reseña.'); return; }
+
+  const reviewId = 'manual_' + Date.now();
+  const review = {
+    reviewId,
+    _author: author,
+    _comment: comment,
+    reviewer: { displayName: author },
+    comment,
+    starRating: Object.keys(GBP_STARS).find(k => GBP_STARS[k] === stars) || 'FIVE',
+    updateTime: new Date().toISOString(),
+    _manual: true
+  };
+
+  const manuals = JSON.parse(LS.get('gbp_manual_reviews') || '[]');
+  manuals.unshift(review);
+  LS.set('gbp_manual_reviews', JSON.stringify(manuals.slice(0, 50)));
+
+  // Add to active list and re-render
+  gbpReviews.unshift(review);
+  renderResenas();
+}
+
+// ── Main render ─────────────────────────────────────────────
 async function renderResenas() {
   const container = document.getElementById('tab-resenas');
   if (!container) return;
 
-  // Restore drafts from localStorage
-  try {
-    const saved = JSON.parse(LS.get('gbp_drafts') || '{}');
-    Object.assign(reviewDrafts, saved);
-  } catch {}
+  _loadDrafts();
 
-  // Restore cached reviews
+  // Restore cached reviews (API + manual)
   if (!gbpReviews.length) {
     try { gbpReviews = JSON.parse(LS.get('gbp_reviews_cache') || '[]'); } catch {}
   }
+  // Merge manual reviews (avoid duplicates)
+  try {
+    const manuals = JSON.parse(LS.get('gbp_manual_reviews') || '[]');
+    manuals.forEach(m => { if (!gbpReviews.find(r => r.reviewId === m.reviewId)) gbpReviews.unshift(m); });
+  } catch {}
 
-  const clientId = LS.get('gbp_client_id') || '';
-  const apiError = LS.get('gbp_api_error') || '';
-  const fetchError = LS.get('gbp_fetch_error') || '';
-  const updated = LS.get('gbp_reviews_updated') || '';
-  const pending = gbpReviews.filter(r => !r.reviewReply);
-  const replied = gbpReviews.filter(r => r.reviewReply);
+  const apiError   = LS.get('gbp_api_error')   || '';
+  const fetchError = LS.get('gbp_fetch_error')  || '';
+  const updated    = LS.get('gbp_reviews_updated') || '';
+  const pending    = gbpReviews.filter(r => !r.reviewReply && reviewDrafts[r.reviewId]?.status !== 'published');
+  const published  = gbpReviews.filter(r => r.reviewReply || reviewDrafts[r.reviewId]?.status === 'published');
+  const apiBlocked = !!apiError;
+  const canPublish = gbpToken && !apiBlocked;
 
   let html = `<p class="ps">RESEÑAS GBP · AMALAY Coffee & Market</p>`;
 
   // KPIs
   html += `<div class="kpis">
-    <div class="kpi"><div class="kpi-l">Total reseñas</div><div class="kpi-v">${gbpReviews.length}</div><div class="kpi-d">cargadas</div></div>
-    <div class="kpi"><div class="kpi-l">Sin responder</div><div class="kpi-v" style="color:${pending.length?'var(--amber)':'var(--green)'}">${pending.length}</div><div class="kpi-d">pendientes</div></div>
-    <div class="kpi"><div class="kpi-l">Respondidas</div><div class="kpi-v" style="color:var(--green)">${replied.length}</div><div class="kpi-d">publicadas</div></div>
-    <div class="kpi"><div class="kpi-l">Agente IA</div><div class="kpi-v" style="font-size:18px">🤖</div><div class="kpi-d">auto-respuesta SEO</div></div>
+    <div class="kpi"><div class="kpi-l">Total</div><div class="kpi-v">${gbpReviews.length}</div><div class="kpi-d">en panel</div></div>
+    <div class="kpi"><div class="kpi-l">Pendientes</div><div class="kpi-v" style="color:${pending.length?'var(--amber)':'var(--green)'}">${pending.length}</div><div class="kpi-d">sin respuesta</div></div>
+    <div class="kpi"><div class="kpi-l">Respondidas</div><div class="kpi-v" style="color:var(--green)">${published.length}</div><div class="kpi-d">publicadas/draft</div></div>
+    <div class="kpi"><div class="kpi-l">API Google</div><div class="kpi-v" style="font-size:13px;color:${canPublish?'var(--green)':apiBlocked?'var(--amber)':'var(--dim)'}">${canPublish?'✓ activa':apiBlocked?'⏳ pendiente':'–'}</div><div class="kpi-d">${canPublish?'autopublicación ON':apiBlocked?'modo draft':'sin conectar'}</div></div>
   </div>`;
 
-  // Auth section
+  // ── Auth section ──
   if (!gbpToken) {
     html += `<div class="gbp-connect-card">
       <div class="gbp-g-icon">G</div>
       <div class="gbp-connect-title">Conectar Google Business Profile</div>
-      <div class="gbp-connect-sub">Inicia sesión con <strong>monigp75@gmail.com</strong> para que el agente Reseñas vea y responda automáticamente.</div>
+      <div class="gbp-connect-sub">Inicia sesión con <strong>monigp75@gmail.com</strong>.<br>Client ID ya configurado para proyecto <code>fullsite-amalay</code>.<br>Sirve el archivo desde <strong>http://localhost</strong> para que OAuth funcione.</div>
       <button class="gbp-connect-btn" onclick="gbpLogin()">Conectar con Google →</button>
-      <div style="margin-top:18px;text-align:left;">
-        <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim);margin-bottom:6px;">OAuth Client ID (de Google Cloud Console)</div>
-        <div class="gbp-client-row">
-          <input id="gbp-client-id-input" class="gbp-client-input" type="text" placeholder="xxxx.apps.googleusercontent.com" value="${esc(clientId)}">
-          <button class="gbp-client-save" onclick="saveGBPClientId()">Guardar</button>
-        </div>
-        ${!clientId ? `<div class="gbp-warn">⚠️ Crea un OAuth Client ID en console.cloud.google.com → APIs & Services → Credentials → Create → Web application. Authorized JS origin: el path de este archivo.</div>` : ''}
-      </div>
+      ${fetchError ? `<div class="gbp-warn" style="margin-top:12px">⚠️ ${esc(fetchError)}</div>` : ''}
     </div>`;
-    container.innerHTML = html;
-    return;
+  } else {
+    // Connected bar
+    const updStr = updated ? new Date(updated).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}) : '';
+    html += `<div class="gbp-status-bar">
+      <span class="dot dot-on"></span>
+      <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--green)">Conectado · monigp75@gmail.com</span>
+      ${updStr ? `<span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim)">· ${updStr}</span>` : ''}
+      <button class="gbp-refresh-btn" onclick="fetchGBPData().then(renderResenas)">↻ Actualizar</button>
+      <button class="gbp-refresh-btn" onclick="gbpLogout()" style="margin-left:4px">Desconectar</button>
+    </div>`;
+    if (fetchError) html += `<div class="gbp-api-warn" style="border-color:var(--red);color:var(--red)">⚠️ ${esc(fetchError)}</div>`;
   }
 
-  // Connected status bar
-  const updatedStr = updated ? new Date(updated).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}) : '';
-  html += `<div class="gbp-status-bar">
-    <span class="dot dot-on"></span>
-    <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--green)">Conectado · monigp75@gmail.com</span>
-    ${updatedStr ? `<span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim)">· actualizado ${updatedStr}</span>` : ''}
-    <button class="gbp-refresh-btn" onclick="fetchGBPReviews().then(renderResenas)">↻ Actualizar reseñas</button>
-  </div>`;
-
-  // API not approved warning
-  if (apiError) {
+  // ── API blocked banner ──
+  if (apiBlocked) {
     html += `<div class="gbp-api-warn">
       <strong>⏳ Reviews API pendiente de aprobación de Google</strong><br>
-      ${esc(apiError)}<br><br>
-      El panel está listo. Cuando Google apruebe el acceso al proyecto <strong>fullsite-amalay</strong>, las reseñas cargarán automáticamente y los drafts guardados se publicarán.
+      <span style="opacity:.8">${esc(apiError.slice(0,200))}</span><br><br>
+      <strong>Modo fallback activo:</strong> genera respuestas con IA, apruébalas y cópialas manualmente a GBP.<br>
+      Los drafts aprobados se publicarán automáticamente cuando Google apruebe el acceso.
     </div>`;
   }
 
-  if (fetchError) {
-    html += `<div class="gbp-api-warn" style="border-color:var(--red);color:var(--red)">Error: ${esc(fetchError)}</div>`;
-  }
+  // ── Manual review input (always visible) ──
+  html += `<div class="sec"><span class="sec-t">Agregar reseña manualmente</span><span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim)">fallback</span></div>
+  <div class="review-card" style="border-style:dashed">
+    <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;margin-bottom:8px;align-items:end;">
+      <input id="mr-author" class="review-ta" style="min-height:unset;padding:7px 10px;" placeholder="Nombre del autor (ej. María G.)">
+      <select id="mr-stars" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:10px;">
+        <option value="5">★★★★★ 5</option>
+        <option value="4">★★★★☆ 4</option>
+        <option value="3">★★★☆☆ 3</option>
+        <option value="2">★★☆☆☆ 2</option>
+        <option value="1">★☆☆☆☆ 1</option>
+      </select>
+      <button class="review-pub-btn" onclick="addManualReview()">+ Agregar</button>
+    </div>
+    <textarea id="mr-comment" class="review-ta" rows="2" placeholder="Pega aquí el texto de la reseña de Google Maps…"></textarea>
+  </div>`;
 
-  // Pending reviews
-  if (pending.length || apiError) {
+  // ── Pending reviews ──
+  if (pending.length) {
     html += `<div class="sec"><span class="sec-t">Sin responder</span><span class="sec-badge">${pending.length}</span></div>`;
   }
 
-  if (!pending.length && !apiError) {
-    html += `<div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--green);padding:12px 0">✓ Todas las reseñas tienen respuesta publicada.</div>`;
-  }
-
   pending.forEach(r => {
-    const stars = GBP_STARS[r.starRating] || 5;
-    const emoji = GBP_STAR_EMOJI(stars);
-    const date = r.updateTime ? new Date(r.updateTime).toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'}) : '';
-    const draft = reviewDrafts[r.reviewId] || '';
-    const generating = reviewGenerating[r.reviewId];
+    const rid     = r.reviewId;
+    const stars   = GBP_STARS[r.starRating] || 5;
+    const emoji   = GBP_STAR_EMOJI(stars);
+    const date    = r.updateTime ? new Date(r.updateTime).toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'}) : '';
+    const entry   = reviewDrafts[rid] || {};
+    const draft   = entry.text || '';
+    const status  = entry.status || 'draft';
+    const generating = reviewGenerating[rid];
+    const isManual = !!r._manual;
+    const statusColor = status==='approved'?'var(--green)':status==='draft'&&draft?'var(--muted)':'var(--dim)';
+    const statusLabel = status==='approved'?'✓ Aprobado':status==='draft'&&draft?'borrador':'pendiente';
 
-    html += `<div class="review-card" id="rcard-${r.reviewId}">
+    html += `<div class="review-card" id="rcard-${rid}">
       <div class="review-header">
         <div class="review-meta">
-          <div class="review-author">${esc(r.reviewer?.displayName || 'Anónimo')}</div>
+          <div class="review-author">${esc(r.reviewer?.displayName || r._author || 'Anónimo')} ${isManual?'<span style="font-family:JetBrains Mono,monospace;font-size:8px;color:var(--dim)">[manual]</span>':''}</div>
           <div style="display:flex;align-items:center;gap:8px;margin-top:3px;">
-            <span class="review-stars" style="color:var(--amber)">${emoji}</span>
+            <span style="color:var(--amber);font-size:13px">${emoji}</span>
             <span class="review-date">${date}</span>
+            <span id="status-${rid}" style="font-family:'JetBrains Mono',monospace;font-size:9px;color:${statusColor};margin-left:auto">${statusLabel}</span>
           </div>
         </div>
       </div>
-      ${r.comment ? `<div class="review-text">${esc(r.comment)}</div>` : `<div class="review-text" style="color:var(--dim);font-style:italic">Sin comentario escrito.</div>`}
-      <div class="review-draft-label ${generating ? 'loading' : ''}">${generating ? '⚡ Generando respuesta SEO···' : draft ? '✍️ Respuesta generada por IA — edita si quieres:' : '⏳ Esperando generación···'}</div>
-      <textarea class="review-ta" id="rta-${r.reviewId}" rows="4" onchange="reviewDrafts['${r.reviewId}']=this.value">${esc(draft)}</textarea>
+      ${(r.comment||r._comment) ? `<div class="review-text">${esc(r.comment||r._comment)}</div>` : `<div class="review-text" style="color:var(--dim);font-style:italic">Sin comentario.</div>`}
+      <div class="review-draft-label ${generating?'loading':''}">
+        ${generating ? '⚡ Generando respuesta SEO···' : draft ? '✍️ Respuesta IA — edita y aprueba:' : '⏳ Generando respuesta···'}
+      </div>
+      <textarea class="review-ta" id="rta-${rid}" rows="4"
+        oninput="updateDraftText('${rid}',this.value)">${esc(draft)}</textarea>
       <div class="review-actions">
-        <button class="review-pub-btn" id="pub-${r.reviewId}" onclick="publishReply('${r.reviewId}')">Aprobar y publicar →</button>
-        <button class="review-regen-btn" id="regen-${r.reviewId}" onclick="regenDraft('${r.reviewId}')">↺ Regenerar</button>
-        <span style="font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--dim);margin-left:auto">${r.reviewId.slice(0,12)}···</span>
+        ${canPublish
+          ? `<button class="review-pub-btn" id="pub-${rid}" onclick="publishReply('${rid}')" ${status!=='approved'?'disabled title="Aprueba primero el draft"':''}>Publicar en GBP →</button>`
+          : `<button class="review-pub-btn" id="pub-${rid}" onclick="approveDraft('${rid}')" style="${status==='approved'?'background:var(--green-bg);color:var(--green);border:1px solid var(--green);':''}">
+              ${status==='approved'?'✓ Aprobado':'Aprobar draft'}
+            </button>`
+        }
+        <button class="review-regen-btn" id="regen-${rid}" onclick="regenDraft('${rid}')">↺ Regen</button>
+        <button class="review-regen-btn" id="copy-${rid}" onclick="copyReply('${rid}')">⎘ Copiar</button>
+        ${isManual ? `<button class="review-regen-btn" onclick="removeManualReview('${rid}')" style="color:var(--red)">✕</button>` : ''}
       </div>
     </div>`;
   });
 
-  // Replied reviews
-  if (replied.length) {
-    html += `<div class="sec" style="margin-top:16px"><span class="sec-t">Respondidas</span><span class="sec-badge green">${replied.length}</span></div>`;
-    replied.forEach(r => {
+  // ── Published/replied ──
+  if (published.length) {
+    html += `<div class="sec" style="margin-top:16px"><span class="sec-t">Respondidas</span><span class="sec-badge green">${published.length}</span></div>`;
+    published.forEach(r => {
       const stars = GBP_STARS[r.starRating] || 5;
-      const date = r.updateTime ? new Date(r.updateTime).toLocaleDateString('es-MX',{day:'numeric',month:'short'}) : '';
+      const date  = r.updateTime ? new Date(r.updateTime).toLocaleDateString('es-MX',{day:'numeric',month:'short'}) : '';
+      const replyText = r.reviewReply?.comment || reviewDrafts[r.reviewId]?.text || '';
+      const isApproved = !r.reviewReply && reviewDrafts[r.reviewId]?.status === 'approved';
       html += `<div class="review-card replied">
-        <div class="review-header">
-          <div class="review-meta">
-            <div class="review-author">${esc(r.reviewer?.displayName || 'Anónimo')}</div>
-            <div style="display:flex;align-items:center;gap:8px;margin-top:3px;">
-              <span class="review-stars" style="color:var(--amber)">${GBP_STAR_EMOJI(stars)}</span>
-              <span class="review-date">${date}</span>
-            </div>
+        <div class="review-header"><div class="review-meta">
+          <div class="review-author">${esc(r.reviewer?.displayName || r._author || 'Anónimo')}</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:3px;">
+            <span style="color:var(--amber);font-size:13px">${GBP_STAR_EMOJI(stars)}</span>
+            <span class="review-date">${date}</span>
           </div>
+        </div></div>
+        ${(r.comment||r._comment) ? `<div class="review-text">${esc(r.comment||r._comment)}</div>` : ''}
+        <div class="review-replied-badge">
+          <span class="dot dot-on" style="width:5px;height:5px;"></span>
+          ${isApproved ? '⏳ Draft aprobado — pendiente de publicar en GBP' : '✓ Respuesta publicada en GBP'}
         </div>
-        ${r.comment ? `<div class="review-text">${esc(r.comment)}</div>` : ''}
-        <div class="review-replied-badge"><span class="dot dot-on" style="width:5px;height:5px;"></span> Respuesta publicada</div>
-        <div class="review-replied-text">${esc(r.reviewReply?.comment || '')}</div>
+        ${replyText ? `<div class="review-replied-text">${esc(replyText)}</div>` : ''}
+        ${isApproved ? `<div style="margin-top:6px"><button class="review-regen-btn" onclick="copyReply('${r.reviewId}')">⎘ Copiar para publicar en GBP</button></div>` : ''}
       </div>`;
     });
   }
 
+  // ── Roadmap: qué falta para autopublicación ──
+  const hasClientId = !!LS.get('gbp_client_id');
+  const hasToken    = !!gbpToken;
+  const hasAccount  = !!gbpAccountId;
+  const reviewsOk   = !apiBlocked && gbpReviews.some(r => !r._manual);
+  html += `<details style="margin-top:20px;border:1px solid var(--border);border-radius:8px;padding:12px 16px;">
+    <summary style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);cursor:pointer;list-style:none;">
+      📋 Estado de autopublicación — ${reviewsOk?'✅ listo':'⏳ pendiente'}
+    </summary>
+    <div style="margin-top:12px;font-family:'JetBrains Mono',monospace;font-size:10px;line-height:2;color:var(--muted)">
+      <div>${hasClientId?'✅':'❌'} OAuth Client ID configurado (305772129726-…)</div>
+      <div>${hasToken?'✅':'⏳'} Token de Google activo (requiere login)</div>
+      <div>${hasAccount?'✅':'⏳'} Cuenta y ubicación GBP identificadas${hasAccount?' ('+gbpAccountId?.split('/')[1]+')':''}</div>
+      <div>${!apiBlocked?'✅':'⏳'} Reviews API aprobada por Google</div>
+      <div style="color:var(--dim);margin-top:8px;line-height:1.7;">
+        ${apiBlocked
+          ? `Para activar publicación real:<br>
+             1. Llena el formulario en <strong>developers.google.com/my-business/content/prereqs</strong><br>
+             2. Google aprueba el proyecto <strong>fullsite-amalay</strong> (días/semanas)<br>
+             3. Recarga el panel — el botón "Publicar en GBP" se activará automáticamente`
+          : 'Todo listo — el botón "Publicar en GBP" está activo.'}
+      </div>
+    </div>
+  </details>`;
+
   container.innerHTML = html;
 
-  // Auto-generate drafts for pending reviews that don't have one yet
-  const needDraft = pending.filter(r => !reviewDrafts[r.reviewId] && !reviewGenerating[r.reviewId]);
+  // Auto-generate drafts for pending reviews without draft
+  const needDraft = pending.filter(r => !reviewDrafts[r.reviewId]?.text && !reviewGenerating[r.reviewId]);
   needDraft.slice(0, 5).forEach(async (r) => {
     reviewGenerating[r.reviewId] = true;
-    // Show loading state on label
     const lbl = document.querySelector(`#rcard-${r.reviewId} .review-draft-label`);
     if (lbl) { lbl.className = 'review-draft-label loading'; lbl.textContent = '⚡ Generando respuesta SEO···'; }
     const draft = await generateReviewDraft(r);
     reviewGenerating[r.reviewId] = false;
-    reviewDrafts[r.reviewId] = draft;
-    LS.set('gbp_drafts', JSON.stringify(reviewDrafts));
+    reviewDrafts[r.reviewId] = { text: draft, status: 'draft' };
+    _saveDrafts();
     const ta = document.getElementById('rta-' + r.reviewId);
     if (ta) ta.value = draft;
-    if (lbl) { lbl.className = 'review-draft-label'; lbl.textContent = '✍️ Respuesta generada por IA — edita si quieres:'; }
+    if (lbl) { lbl.className = 'review-draft-label'; lbl.textContent = '✍️ Respuesta IA — edita y aprueba:'; }
   });
+}
+
+function removeManualReview(reviewId) {
+  gbpReviews = gbpReviews.filter(r => r.reviewId !== reviewId);
+  const manuals = JSON.parse(LS.get('gbp_manual_reviews') || '[]').filter(r => r.reviewId !== reviewId);
+  LS.set('gbp_manual_reviews', JSON.stringify(manuals));
+  delete reviewDrafts[reviewId];
+  _saveDrafts();
+  renderResenas();
 }
 
 // ============================================================

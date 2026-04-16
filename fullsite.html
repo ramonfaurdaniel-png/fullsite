@@ -361,6 +361,7 @@ hr.div{border:none;border-top:1px solid var(--border);margin:16px 0;}
 .sec-badge.green{background:var(--green-bg);color:var(--green);}
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 </head>
 <body>
 
@@ -3507,132 +3508,296 @@ function removeManualReview(reviewId) {
 }
 
 // ============================================================
-// GRAPH VIEW — graphify-out/graph.json
+// GRAPH VIEW — D3 v7 · War Room Agent Graph
 // ============================================================
-let _graphInstance = null;
-let _graphAllNodes = [];
-let _graphAllLinks = [];
-
-async function renderGraph() {
+function renderGraph() {
   const el = document.getElementById('tab-graph');
   if (!el) return;
 
   el.innerHTML = `
-    <p class="ps">GRAFO DE CÓDIGO · fullsite</p>
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
-      <input id="graph-search" type="text" placeholder="Buscar función, archivo, comunidad…"
-        style="flex:1;min-width:180px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 12px;font-family:'JetBrains Mono',monospace;font-size:11px;"
-        oninput="graphFilter(this.value)">
-      <button onclick="graphReset()" style="background:none;border:1px solid var(--border2);color:var(--muted);border-radius:5px;padding:5px 12px;font-size:10px;font-family:'JetBrains Mono',monospace;cursor:pointer;">Reset</button>
-      <span id="graph-count" style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--dim)"></span>
-    </div>
-    <div id="graph-wrap" style="border:1px solid var(--border);border-radius:10px;overflow:hidden;height:calc(100vh - 210px);background:#05070b;position:relative;">
-      <div id="graph-tooltip" style="position:absolute;background:rgba(5,7,11,.92);color:#e0e0e0;font-family:'JetBrains Mono',monospace;font-size:10px;padding:8px 11px;border-radius:7px;pointer-events:none;display:none;z-index:10;max-width:280px;line-height:1.7;border:1px solid rgba(255,255,255,.12)"></div>
-      <div id="graph-info" style="position:absolute;top:10px;right:12px;font-family:'JetBrains Mono',monospace;font-size:9px;color:rgba(255,255,255,.25);line-height:1.8;pointer-events:none">
-        hover → info · click → zoom · scroll → zoom
-      </div>
-    </div>`;
+<style>
+#wg-wrap{position:relative;width:100%;height:calc(100vh - 120px);background:#04050a;border-radius:10px;overflow:hidden;border:1px solid var(--border);}
+#wg-canvas{position:absolute;inset:0;}
+#wg-svg{position:absolute;inset:0;}
+#wg-hud{position:absolute;top:14px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:7px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:5px 14px;font-family:'JetBrains Mono',monospace;font-size:10px;color:#9aff9a;backdrop-filter:blur(6px);z-index:20;pointer-events:none;}
+#wg-hud-dot{width:6px;height:6px;border-radius:50%;background:#00f5a0;animation:wg-blink 1.4s infinite;}
+@keyframes wg-blink{0%,100%{opacity:1}50%{opacity:.2}}
+#wg-kpis{position:absolute;top:14px;right:14px;display:flex;flex-direction:column;gap:5px;z-index:20;}
+.wg-pill{background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:4px 10px;font-family:'JetBrains Mono',monospace;font-size:9px;color:#ccc;backdrop-filter:blur(4px);white-space:nowrap;}
+.wg-pill span{color:#00f5a0;font-weight:700;}
+#wg-legend{position:absolute;bottom:14px;left:14px;display:flex;flex-direction:column;gap:4px;z-index:20;}
+.wg-leg{display:flex;align-items:center;gap:5px;font-family:'JetBrains Mono',monospace;font-size:9px;color:#888;}
+.wg-leg-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+#wg-btns{position:absolute;bottom:14px;right:14px;display:flex;gap:6px;z-index:20;}
+.wg-btn{background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.12);color:#aaa;border-radius:7px;padding:6px 10px;font-size:13px;cursor:pointer;backdrop-filter:blur(4px);transition:all .15s;}
+.wg-btn:hover{border-color:rgba(255,255,255,.3);color:#fff;}
+#wg-tooltip{position:absolute;pointer-events:none;display:none;z-index:30;background:rgba(4,5,10,.92);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:9px 13px;font-family:'JetBrains Mono',monospace;font-size:10px;color:#ddd;line-height:1.7;max-width:220px;}
+#wg-tooltip .tt-name{font-size:12px;font-weight:700;color:#fff;margin-bottom:3px;}
+#wg-tooltip .tt-badge{display:inline-block;border-radius:4px;padding:1px 6px;font-size:9px;margin-top:3px;}
+@keyframes wg-spin-cw{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes wg-spin-ccw{from{transform:rotate(360deg)}to{transform:rotate(0deg)}}
+.wg-ring-cw{animation:wg-spin-cw 6s linear infinite;transform-origin:center;transform-box:fill-box;}
+.wg-ring-ccw{animation:wg-spin-ccw 9s linear infinite;transform-origin:center;transform-box:fill-box;}
+@keyframes wg-dash{to{stroke-dashoffset:-20}}
+.wg-flow{animation:wg-dash .8s linear infinite;}
+</style>
+<div id="wg-wrap">
+  <canvas id="wg-canvas"></canvas>
+  <svg id="wg-svg"></svg>
+  <div id="wg-hud"><div id="wg-hud-dot"></div>War Room · Graph</div>
+  <div id="wg-kpis">
+    <div class="wg-pill" id="wg-k1">ventas <span>—</span></div>
+    <div class="wg-pill" id="wg-k2">tickets <span>—</span></div>
+    <div class="wg-pill" id="wg-k3">ticket prom <span>—</span></div>
+    <div class="wg-pill" id="wg-k4">top server <span>—</span></div>
+  </div>
+  <div id="wg-legend"></div>
+  <div id="wg-btns">
+    <button class="wg-btn" id="wg-freeze" title="Freeze layout">❄</button>
+    <button class="wg-btn" id="wg-reset"  title="Reset zoom">⌖</button>
+  </div>
+  <div id="wg-tooltip"></div>
+</div>`;
 
-  // Load force-graph library once
-  if (!window.ForceGraph) {
-    await new Promise((res, rej) => {
-      const s = document.createElement('script');
-      s.src = 'https://unpkg.com/force-graph';
-      s.onload = res; s.onerror = rej;
-      document.head.appendChild(s);
+  (function initGraph() {
+    if (!window.d3) { setTimeout(initGraph, 200); return; }
+
+    // ── DATA ────────────────────────────────────────────────
+    const NODES = [
+      { id:'orquestador', label:'Orquestador', icon:'⚙️', color:'#00f5a0', r:22, desc:'Coordina todos los agentes', type:'core' },
+      { id:'contenido',   label:'Contenido',   icon:'✍️', color:'#7b61ff', r:16, desc:'Posts, reels, copies',     type:'agent' },
+      { id:'reportes',    label:'Reportes',    icon:'📊', color:'#ff6b35', r:16, desc:'KPIs y análisis',          type:'agent' },
+      { id:'ops',         label:'Ops',         icon:'🔧', color:'#00c8ff', r:16, desc:'Operaciones y SOPs',       type:'agent' },
+      { id:'kb',          label:'KB',          icon:'📚', color:'#ffcc00', r:16, desc:'Base de conocimiento',     type:'agent' },
+      { id:'wansoft',     label:'Wansoft',     icon:'🏪', color:'#ff3e80', r:16, desc:'POS · ventas en vivo',     type:'agent' },
+      { id:'supabase',    label:'Supabase',    icon:'🗄️', color:'#3ecf8e', r:10, desc:'Base de datos en nube',   type:'infra' },
+      { id:'telegram',    label:'Telegram',    icon:'📱', color:'#229ED9', r:10, desc:'Notificaciones push',      type:'infra' },
+      { id:'amalay',      label:'AMALAY',      icon:'☕', color:'#c9a96e', r:13, desc:'Cliente principal',        type:'client' },
+      { id:'chrome_ext',  label:'AutoSync',    icon:'🔄', color:'#888888', r:9,  desc:'Sync automático Chrome',   type:'infra' },
+    ];
+    const LINKS = [
+      { source:'orquestador', target:'contenido',  strength:0.8 },
+      { source:'orquestador', target:'reportes',   strength:0.8 },
+      { source:'orquestador', target:'ops',        strength:0.8 },
+      { source:'orquestador', target:'kb',         strength:0.8 },
+      { source:'orquestador', target:'wansoft',    strength:0.8 },
+      { source:'wansoft',     target:'supabase',   strength:0.7 },
+      { source:'wansoft',     target:'chrome_ext', strength:0.5 },
+      { source:'chrome_ext',  target:'supabase',   strength:0.5 },
+      { source:'supabase',    target:'reportes',   strength:0.7 },
+      { source:'supabase',    target:'telegram',   strength:0.6 },
+      { source:'orquestador', target:'amalay',     strength:0.4 },
+    ];
+
+    const wrap = document.getElementById('wg-wrap');
+    const W = wrap.clientWidth, H = wrap.clientHeight;
+
+    // ── STARFIELD ───────────────────────────────────────────
+    const canvas = document.getElementById('wg-canvas');
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    const stars = Array.from({length:120}, () => ({
+      x: Math.random()*W, y: Math.random()*H,
+      r: Math.random()*1.2+.2,
+      a: Math.random(), da: (Math.random()*.006+.002)*(Math.random()<.5?1:-1)
+    }));
+    function drawStars() {
+      ctx.clearRect(0,0,W,H);
+      // grid overlay
+      ctx.strokeStyle = 'rgba(255,255,255,0.025)';
+      ctx.lineWidth = .5;
+      for(let x=0;x<W;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+      for(let y=0;y<H;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+      stars.forEach(s => {
+        s.a = Math.max(0.05, Math.min(1, s.a + s.da));
+        if(s.a<=.05||s.a>=1) s.da*=-1;
+        ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+        ctx.fillStyle=`rgba(255,255,255,${s.a.toFixed(2)})`; ctx.fill();
+      });
+      requestAnimationFrame(drawStars);
+    }
+    drawStars();
+
+    // ── LEGEND ──────────────────────────────────────────────
+    const legEl = document.getElementById('wg-legend');
+    const types = [{t:'core',c:'#00f5a0',l:'Core'},{t:'agent',c:'#7b61ff',l:'Agente'},{t:'infra',c:'#3ecf8e',l:'Infra'},{t:'client',c:'#c9a96e',l:'Cliente'}];
+    legEl.innerHTML = types.map(t=>`<div class="wg-leg"><div class="wg-leg-dot" style="background:${t.c}"></div>${t.l}</div>`).join('');
+
+    // ── SVG + D3 ─────────────────────────────────────────────
+    const svg = d3.select('#wg-svg').attr('width',W).attr('height',H);
+
+    // defs: glow filter
+    const defs = svg.append('defs');
+    NODES.forEach(n => {
+      const f = defs.append('filter').attr('id','glow-'+n.id).attr('x','-80%').attr('y','-80%').attr('width','260%').attr('height','260%');
+      f.append('feGaussianBlur').attr('stdDeviation','4').attr('result','blur');
+      const fM = f.append('feMerge');
+      fM.append('feMergeNode').attr('in','blur');
+      fM.append('feMergeNode').attr('in','SourceGraphic');
     });
-  }
 
-  // Load graph data
-  let data;
-  try {
-    const r = await fetch('graphify-out/graph.json');
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    data = await r.json();
-  } catch(e) {
-    document.getElementById('graph-wrap').innerHTML =
-      `<div style="color:var(--amber);font-family:'JetBrains Mono',monospace;font-size:11px;padding:50px;text-align:center;line-height:2">
-        ⚠️ No se pudo cargar <code>graphify-out/graph.json</code><br>
-        <span style="opacity:.6;font-size:10px">Sirve el War Room desde <strong>http://localhost</strong> — fetch no funciona en file://</span>
-       </div>`;
-    return;
-  }
+    // zoom/pan
+    const g = svg.append('g');
+    const zoom = d3.zoom().scaleExtent([0.3,3]).on('zoom', e => g.attr('transform', e.transform));
+    svg.call(zoom);
 
-  _graphAllNodes = data.nodes || [];
-  _graphAllLinks = data.links || data.edges || [];
+    // simulation
+    const sim = d3.forceSimulation(NODES)
+      .force('link', d3.forceLink(LINKS).id(d=>d.id).strength(d=>d.strength).distance(d => d.strength > 0.7 ? 130 : 180))
+      .force('charge', d3.forceManyBody().strength(-600))
+      .force('center', d3.forceCenter(W/2, H/2))
+      .force('collide', d3.forceCollide().radius(d => d.r + 18));
 
-  const COLORS = [
-    '#4285f4','#34a853','#ea4335','#fbbc04','#c792ea',
-    '#89ddff','#ff6ab2','#82aaff','#f78c6c','#c3e88d',
-    '#ffcb6b','#e1acff','#b2ccd6','#7986cb','#4db6ac','#ff8a65'
-  ];
-  const nodeColor = n => COLORS[n.community % COLORS.length];
+    // links
+    const linkG = g.append('g');
+    const linkSel = linkG.selectAll('line').data(LINKS).enter().append('line')
+      .attr('stroke', d => {
+        const src = NODES.find(n=>n.id===d.source.id||n.id===d.source);
+        return src ? src.color : '#fff';
+      })
+      .attr('stroke-opacity', 0.45)
+      .attr('stroke-width', d => 1 + d.strength)
+      .each(function(d) {
+        if(d.strength > 0.7) d3.select(this).attr('stroke-dasharray','6 4').classed('wg-flow',true);
+      });
 
-  const container = document.getElementById('graph-wrap');
-  const tooltip   = document.getElementById('graph-tooltip');
+    // node groups
+    const nodeG = g.append('g');
+    const nodeSel = nodeG.selectAll('g').data(NODES).enter().append('g')
+      .attr('cursor','grab')
+      .call(d3.drag()
+        .on('start', (e,d) => { if(!e.active) sim.alphaTarget(.3).restart(); d.fx=d.x; d.fy=d.y; })
+        .on('drag',  (e,d) => { d.fx=e.x; d.fy=e.y; })
+        .on('end',   (e,d) => { if(!e.active) sim.alphaTarget(0); if(!frozen){d.fx=null;d.fy=null;} }));
 
-  _graphInstance = ForceGraph()(container)
-    .graphData({ nodes: _graphAllNodes, links: _graphAllLinks })
-    .nodeId('id')
-    .nodeColor(nodeColor)
-    .nodeRelSize(3)
-    .nodeVal(n => (n.community === 0 ? 4 : 2))
-    .backgroundColor('#05070b')
-    .linkColor(() => 'rgba(255,255,255,0.07)')
-    .linkWidth(0.5)
-    .onNodeHover(node => {
-      tooltip.style.display = node ? 'block' : 'none';
-      if (node) tooltip.innerHTML =
-        `<strong style="color:#fff">${node.label}</strong><br>
-         <span style="color:#888">${node.source_file}</span>
-         <span style="color:#555"> · ${node.source_location}</span><br>
-         <span style="color:${nodeColor(node)}">comunidad ${node.community}</span>`;
-    })
-    .onNodeClick(node => {
-      _graphInstance.centerAt(node.x, node.y, 500);
-      _graphInstance.zoom(4, 500);
+    // outer ring (agents + core)
+    nodeSel.filter(d => d.r >= 16).append('circle')
+      .attr('r', d => d.r + 7)
+      .attr('fill','none')
+      .attr('stroke', d => d.color)
+      .attr('stroke-opacity', 0.35)
+      .attr('stroke-width', 1.2)
+      .attr('stroke-dasharray', d => d.r >= 20 ? '4 3' : '3 4')
+      .attr('class', d => d.r >= 20 ? 'wg-ring-cw' : 'wg-ring-ccw');
+
+    // main circle
+    nodeSel.append('circle')
+      .attr('r', d => d.r)
+      .attr('fill', d => d.color + '22')
+      .attr('stroke', d => d.color)
+      .attr('stroke-width', d => d.r >= 20 ? 2.5 : 1.8)
+      .attr('filter', d => `url(#glow-${d.id})`);
+
+    // icon text
+    nodeSel.append('text')
+      .text(d => d.icon)
+      .attr('text-anchor','middle')
+      .attr('dominant-baseline','central')
+      .attr('font-size', d => Math.floor(d.r * 0.9))
+      .style('pointer-events','none');
+
+    // label
+    nodeSel.append('text')
+      .text(d => d.label)
+      .attr('text-anchor','middle')
+      .attr('y', d => d.r + 14)
+      .attr('fill', d => d.color)
+      .attr('font-family','JetBrains Mono, monospace')
+      .attr('font-size', 9)
+      .attr('font-weight', 600)
+      .style('pointer-events','none');
+
+    // ── TOOLTIP ─────────────────────────────────────────────
+    const tt = document.getElementById('wg-tooltip');
+    const typeColors = {core:'#00f5a0',agent:'#7b61ff',infra:'#3ecf8e',client:'#c9a96e'};
+
+    nodeSel
+      .on('mouseenter', function(e,d) {
+        // dim non-connected
+        const connIds = new Set([d.id]);
+        LINKS.forEach(l => {
+          const s = l.source.id||l.source, t = l.target.id||l.target;
+          if(s===d.id) connIds.add(t);
+          if(t===d.id) connIds.add(s);
+        });
+        nodeSel.style('opacity', n => connIds.has(n.id) ? 1 : 0.1);
+        linkSel.style('opacity', l => {
+          const s=l.source.id||l.source, t=l.target.id||l.target;
+          return (s===d.id||t===d.id) ? 1 : 0.05;
+        });
+        // tooltip
+        tt.style.display='block';
+        tt.innerHTML=`<div class="tt-name">${d.icon} ${d.label}</div>
+          <div style="color:#888;font-size:9px">${d.desc}</div>
+          <div class="tt-badge" style="background:${typeColors[d.type]}22;color:${typeColors[d.type]};border:1px solid ${typeColors[d.type]}44">${d.type}</div>`;
+      })
+      .on('mousemove', function(e) {
+        const rc = wrap.getBoundingClientRect();
+        const x = e.clientX-rc.left+14, y = e.clientY-rc.top+14;
+        tt.style.left = (x+220>W ? x-230 : x)+'px';
+        tt.style.top  = (y+80>H  ? y-90  : y)+'px';
+      })
+      .on('mouseleave', function() {
+        nodeSel.style('opacity',1); linkSel.style('opacity', d=>d.strength>0.7?.6:.45);
+        tt.style.display='none';
+      });
+
+    // ── TICK ─────────────────────────────────────────────────
+    sim.on('tick', () => {
+      linkSel
+        .attr('x1', d=>d.source.x).attr('y1', d=>d.source.y)
+        .attr('x2', d=>d.target.x).attr('y2', d=>d.target.y);
+      nodeSel.attr('transform', d=>`translate(${d.x},${d.y})`);
     });
 
-  container.addEventListener('mousemove', e => {
-    const rc = container.getBoundingClientRect();
-    const x = e.clientX - rc.left + 14, y = e.clientY - rc.top + 14;
-    tooltip.style.left = (x + 280 > rc.width ? x - 300 : x) + 'px';
-    tooltip.style.top  = (y + 80  > rc.height ? y - 90  : y) + 'px';
-  });
+    // ── CONTROLS ─────────────────────────────────────────────
+    let frozen = false;
+    document.getElementById('wg-freeze').onclick = () => {
+      frozen = !frozen;
+      document.getElementById('wg-freeze').style.color = frozen ? '#00f5a0' : '#aaa';
+      if(frozen) { NODES.forEach(d=>{ d.fx=d.x; d.fy=d.y; }); sim.stop(); }
+      else       { NODES.forEach(d=>{ d.fx=null; d.fy=null; }); sim.restart(); }
+    };
+    document.getElementById('wg-reset').onclick = () => {
+      svg.transition().duration(600).call(zoom.transform, d3.zoomIdentity);
+    };
 
-  _graphInstance.d3Force('charge').strength(-350);
-  _graphInstance.d3Force('link').distance(90);
-  setTimeout(() => _graphInstance?.zoomToFit(900, 60), 1400);
+    // ── SUPABASE KPI SYNC ────────────────────────────────────
+    const SB_URL_G = 'https://qjiomlvudfmzuvqvhwpk.supabase.co';
+    const SB_KEY_G = typeof SB_KEY !== 'undefined' ? SB_KEY : '';
+    const wansoftNode = NODES.find(n=>n.id==='wansoft');
 
-  document.getElementById('graph-count').textContent =
-    `${_graphAllNodes.length} nodos · ${_graphAllLinks.length} enlaces · ${new Set(_graphAllNodes.map(n=>n.community)).size} comunidades`;
-}
+    async function fetchKPIs() {
+      if(!SB_KEY_G) return;
+      try {
+        const r = await fetch(`${SB_URL_G}/rest/v1/wansoft_kpis?id=eq.amalay&select=*`, {
+          headers:{ apikey: SB_KEY_G, Authorization: 'Bearer '+SB_KEY_G }
+        });
+        if(!r.ok) return;
+        const rows = await r.json();
+        const d = rows[0];
+        if(!d) return;
+        const fmt = v => v != null ? (typeof v==='number' ? v.toLocaleString('es-MX') : v) : '—';
+        document.getElementById('wg-k1').innerHTML = `ventas <span>$${fmt(d.ventas_totales)}</span>`;
+        document.getElementById('wg-k2').innerHTML = `tickets <span>${fmt(d.num_tickets)}</span>`;
+        document.getElementById('wg-k3').innerHTML = `ticket prom <span>$${fmt(d.ticket_promedio)}</span>`;
+        document.getElementById('wg-k4').innerHTML = `top server <span>${fmt(d.top_server)}</span>`;
+        // color wansoft node green if data is fresh (< 25 min)
+        if(d.updated_at) {
+          const age = (Date.now() - new Date(d.updated_at)) / 60000;
+          const freshColor = age < 25 ? '#00f5a0' : '#ff3e80';
+          wansoftNode.color = freshColor;
+          nodeG.selectAll('circle').filter(n=>n.id==='wansoft')
+            .attr('stroke', freshColor).attr('filter', `url(#glow-wansoft)`);
+          nodeG.selectAll('text').filter(function(n){ return n.id==='wansoft' && d3.select(this).attr('y'); })
+            .attr('fill', freshColor);
+        }
+      } catch(e) { console.warn('[Graph KPI]', e.message); }
+    }
+    fetchKPIs();
+    setInterval(fetchKPIs, 60000);
 
-function graphFilter(q) {
-  if (!_graphInstance) return;
-  q = q.trim().toLowerCase();
-  if (!q) { graphReset(); return; }
-  const filtered = _graphAllNodes.filter(n =>
-    n.label.toLowerCase().includes(q) ||
-    n.source_file.toLowerCase().includes(q) ||
-    String(n.community) === q
-  );
-  const ids = new Set(filtered.map(n => n.id));
-  const filtLinks = _graphAllLinks.filter(l =>
-    ids.has(l.source?.id ?? l.source) && ids.has(l.target?.id ?? l.target)
-  );
-  _graphInstance.graphData({ nodes: filtered, links: filtLinks });
-  document.getElementById('graph-count').textContent =
-    `${filtered.length} nodos · ${filtLinks.length} enlaces`;
-}
-
-function graphReset() {
-  if (!_graphInstance) return;
-  _graphInstance.graphData({ nodes: _graphAllNodes, links: _graphAllLinks });
-  document.getElementById('graph-search').value = '';
-  document.getElementById('graph-count').textContent =
-    `${_graphAllNodes.length} nodos · ${_graphAllLinks.length} enlaces · ${new Set(_graphAllNodes.map(n=>n.community)).size} comunidades`;
-  setTimeout(() => _graphInstance?.zoomToFit(600, 60), 100);
+  })(); // end IIFE
 }
 
 // ============================================================

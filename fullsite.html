@@ -998,7 +998,7 @@ async function buildSystemPrompt(agentId, taskText='') {
     kb: `\n\nTU ROL — BASE DE CONOCIMIENTO:\nRespondes cualquier pregunta sobre los clientes con información precisa. Si no tienes el dato, dilo claramente. Eres la fuente de verdad sobre la agencia y sus clientes.`,
     seo: `\n\nTU ROL — AGENTE SEO:\nOptimizas el posicionamiento de AMALAY en Google Maps y búsqueda orgánica. Meta: 4.5 estrellas. Keywords target: "brunch San Pedro Garza García", "AMALAY Coffee & Market", "Plaza Duendes", "terraza Monterrey", "desayuno San Pedro". Generas posts semanales para GBP, sugieres categorías, descripciones, atributos. Analizas reseñas para extraer keywords SEO.`,
     ads: `\n\nTU ROL — AGENTE GOOGLE ADS:\nGestionas la campaña Performance Max "Amalay Coffee Market" a $150/día (cuenta: monigp75@gmail.com). ISSUE CRÍTICO ACTIVO: Asset group "Pal Norte 2026" marcado "Limited by policy" por imágenes con alcohol — el festival terminó el 29 de marzo de 2026, hay que pausar o eliminar ese asset group urgente. Analizas rendimiento, sugieres ajustes.`,
-    reviews: `\n\nTU ROL — AGENTE DE RESEÑAS:\nGestionas la reputación online de AMALAY. Cuando el usuario te pegue una reseña, genera una respuesta SEO-optimizada con estas keywords: "AMALAY Coffee & Market", "brunch San Pedro Garza García", "Plaza Duendes", "terraza". Tono: agradecido, profesional, cálido. Staff destacado: Oscar, Omar. Para quejas serias: escala a WhatsApp 81 8254 3303.`,
+    reviews: `\n\nTU ROL — AGENTE DE RESEÑAS:\nGestionas la reputación online de AMALAY Coffee & Market en Plaza Duendes, San Pedro Garza García.\n\nCuando el usuario te dé una reseña, genera UNA respuesta lista para copiar/pegar en Google.\n\nREGLAS OBLIGATORIAS:\n1. Máximo 3-4 líneas (no más).\n2. Empieza mencionando el nombre del cliente.\n3. Menciona algo ESPECÍFICO de su reseña: el platillo, el mesero (Oscar, Omar, Héctor), la experiencia que describió.\n4. Incluye keywords SEO de forma natural — mínimo 2 de: "AMALAY Coffee & Market", "Plaza Duendes", "San Pedro Garza García", "brunch", "desayuno".\n5. Si la reseña está en inglés → responde en inglés.\n6. Tono: cálido y personal. NO usar frases promocionales ni exageradas ("increíble equipo", "somos los mejores", etc.).\n7. SIEMPRE termina invitando a regresar.\n\nEJEMPLO CORRECTO:\n"¡Gracias, Michelle! Nos alegra mucho saber que disfrutaste tu brunch en AMALAY Coffee & Market y que Omar te brindó un servicio excelente. Nos encanta ser un lugar para pasar un momento agradable en San Pedro Garza García. ¡Te esperamos pronto!"\n\nPara quejas serias: empatía breve + "Contáctanos al WhatsApp 81 8254 3303 para atenderte personalmente." + invitación a regresar.\n\nResponde SOLO con el texto listo para publicar, sin comillas ni explicación adicional.`,
     wansoft_ag: `\n\nTU ROL — AGENTE WANSOFT & OPERACIONES:\nAnalizas los datos reales del POS de AMALAY. Identifica tendencias: platillos estrella, meseros top, horas pico, mix de pago. Usa los datos reales de Wansoft que tienes en el contexto. Calcula métricas derivadas (% descuento, ticket promedio, etc). Alerta sobre anomalías. Da recomendaciones operativas concretas.`
   };
 
@@ -3031,7 +3031,7 @@ async function fetchResenasFromSupabase() {
   LS.set('gbp_fetch_error', '');
   try {
     const r = await fetch(
-      `${SB_URL}/rest/v1/reviews?order=date.desc&limit=50`,
+      `${SB_URL}/rest/v1/reviews?status=in.(pending,draft,approved)&order=date.desc&limit=50`,
       { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY } }
     );
     if (!r.ok) throw new Error('Supabase HTTP ' + r.status);
@@ -3125,24 +3125,29 @@ async function generateReviewDraft(review) {
   const positive = stars >= 4;
   const author  = review.reviewer?.displayName || review._author || 'cliente';
   const comment = (review.comment || review._comment || '').slice(0, 500);
-  const prompt = `Genera una respuesta SEO-optimizada para esta reseña de Google de AMALAY Coffee & Market en Plaza Duendes, San Pedro Garza García.
+  const lang = /[a-zA-Z]{4,}/.test(comment) && !/[áéíóúñ¡¿]/i.test(comment) ? 'en' : 'es';
+  const prompt = `Genera una respuesta para esta reseña de Google de AMALAY Coffee & Market (Plaza Duendes, San Pedro Garza García).
 
 RESEÑA:
 - Autor: ${author}
 - Estrellas: ${stars}/5
 - Comentario: "${comment || '(sin comentario)'}"
 
-REGLAS OBLIGATORIAS:
-1. Menciona "AMALAY Coffee & Market" al menos 1 vez.
-2. Incluye al menos 1 keyword: "brunch San Pedro Garza García", "Plaza Duendes", "terraza Monterrey", "desayuno San Pedro".
-3. ${positive
-    ? 'POSITIVA: saludo por nombre → agradecimiento específico → keyword SEO → invitación → "¡Te esperamos pronto! — Equipo AMALAY"'
-    : 'NEGATIVA: empatía → reconocimiento sin excusas → "WhatsApp 81 8254 3303" → keyword → compromiso de mejora — Equipo AMALAY'}
-4. 60-120 palabras. Tono cálido, regio, auténtico. Voz de Monica (la dueña).
-5. Si mencionan platillo o empleado (Oscar, Omar, Héctor), referéncialo.
-6. NUNCA respuesta genérica.
+REGLAS (cumple TODAS):
+1. Máximo 3-4 líneas. No más.
+2. Empieza mencionando el nombre "${author}".
+3. Menciona algo ESPECÍFICO que dijo en su reseña (platillo, mesero, experiencia). Si no hay comentario, menciona el negocio de forma natural.
+4. Incluye al menos 2 de estas keywords de forma natural: "AMALAY Coffee & Market", "Plaza Duendes", "San Pedro Garza García", "brunch", "desayuno".
+5. ${lang === 'en' ? 'La reseña está en inglés → RESPONDE EN INGLÉS.' : 'Responde en español.'}
+6. ${positive
+    ? 'Tono: cálido y personal. NO frases exageradas ni promocionales.'
+    : 'Empatía breve + "Contáctanos al WhatsApp 81 8254 3303 para atenderte personalmente." Breve y directo.'}
+7. Termina siempre invitando a regresar.
 
-Responde SOLO con el texto listo para publicar, sin comillas ni explicación.`;
+EJEMPLO:
+"¡Gracias, Michelle! Nos alegra mucho saber que disfrutaste tu brunch en AMALAY Coffee & Market y que Omar te brindó un servicio excelente. Nos encanta ser un lugar para pasar un momento agradable en San Pedro Garza García. ¡Te esperamos pronto!"
+
+Responde SOLO con el texto listo para publicar. Sin comillas, sin explicación.`;
   try {
     const r = await groqCall(null, [{ role:'user', content:prompt }], 350);
     return r?.trim() || '';

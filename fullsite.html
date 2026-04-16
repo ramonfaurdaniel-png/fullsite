@@ -2902,12 +2902,14 @@ const GBP_STARS     = { ONE:1, TWO:2, THREE:3, FOUR:4, FIVE:5 };
 const GBP_STAR_EMOJI = n => '★'.repeat(n) + '☆'.repeat(5-n);
 const GBP_SB_H = () => ({ apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', Prefer: 'return=representation' });
 
-let gbpToken     = sessionStorage.getItem('gbp_token') || null;
-let gbpAccountId = LS.get('gbp_account_id') || null;
+let gbpToken      = sessionStorage.getItem('gbp_token') || null;
+let gbpAccountId  = LS.get('gbp_account_id')  || null;
 let gbpLocationId = LS.get('gbp_location_id') || null;
 let gbpReviews    = [];
 let reviewDrafts  = {};   // reviewId → { text, status:'draft'|'approved'|'published' }
 let reviewGenerating = {};
+let _gbpLastFetch = 0;   // timestamp ms — debounce guard
+const GBP_DEBOUNCE_MS = 10000;
 
 let _gbpTokenClient = null;
 let _gbpInitAttempts = 0;
@@ -2934,8 +2936,7 @@ function initGBP() {
       gbpToken = resp.access_token;
       sessionStorage.setItem('gbp_token', gbpToken);
       LS.set('gbp_fetch_error', '');
-      renderResenas();
-      await fetchGBPData();
+      // Don't auto-fetch on login — user clicks "Actualizar" when ready
       renderResenas();
     }
   });
@@ -2965,39 +2966,68 @@ function gbpLogout() {
 }
 
 // ── Fetch chain: accounts → locations → reviews ────────────
+// accountId/locationId are cached in localStorage — only fetched once.
+// Reviews are only fetched on explicit user action ("Actualizar").
+// Debounce: minimum GBP_DEBOUNCE_MS between any real API call.
 async function fetchGBPData() {
   if (!gbpToken) return;
+
+  const now = Date.now();
+  if (now - _gbpLastFetch < GBP_DEBOUNCE_MS) {
+    console.log('[GBP] Debounced — too soon since last fetch');
+    return;
+  }
+  _gbpLastFetch = now;
   LS.set('gbp_fetch_error', '');
+
   try {
-    // 1. Accounts
-    const accR = await fetch('https://mybusinessaccountmanagement.googleapis.com/v1/accounts',
-      { headers: { Authorization: 'Bearer ' + gbpToken } });
-    if (accR.status === 401) { gbpToken = null; sessionStorage.removeItem('gbp_token'); renderResenas(); return; }
-    const accD = await accR.json();
-    if (accD.error) throw new Error('Accounts: ' + accD.error.message);
-    const accs = accD.accounts || [];
-    if (!accs.length) throw new Error('No se encontraron cuentas GBP asociadas a este token.');
-    gbpAccountId = accs[0].name;  // "accounts/123456"
-    LS.set('gbp_account_id', gbpAccountId);
+    // 1. Accounts — skip if already cached
+    if (!gbpAccountId) {
+      const accR = await fetch('https://mybusinessaccountmanagement.googleapis.com/v1/accounts',
+        { headers: { Authorization: 'Bearer ' + gbpToken } });
+      if (accR.status === 401) { gbpToken = null; sessionStorage.removeItem('gbp_token'); renderResenas(); return; }
+      const accD = await accR.json();
+      if (accD.error) throw new Error('Accounts: ' + accD.error.message);
+      const accs = accD.accounts || [];
+      if (!accs.length) throw new Error('No se encontraron cuentas GBP asociadas a este token.');
+      gbpAccountId = accs[0].name;
+      LS.set('gbp_account_id', gbpAccountId);
+    }
 
-    // 2. Locations
-    const locR = await fetch(
-      `https://mybusinessbusinessinformation.googleapis.com/v1/${gbpAccountId}/locations?readMask=name,title`,
-      { headers: { Authorization: 'Bearer ' + gbpToken } });
-    const locD = await locR.json();
-    if (locD.error) throw new Error('Locations: ' + locD.error.message);
-    const locs = locD.locations || [];
-    if (!locs.length) throw new Error('No se encontraron ubicaciones GBP.');
-    const amLoc = locs.find(l => /amalay/i.test(l.title)) || locs[0];
-    gbpLocationId = amLoc.name;  // "locations/123456"
-    LS.set('gbp_location_id', gbpLocationId);
+    // 2. Locations — skip if already cached
+    if (!gbpLocationId) {
+      const locR = await fetch(
+        `https://mybusinessbusinessinformation.googleapis.com/v1/${gbpAccountId}/locations?readMask=name,title`,
+        { headers: { Authorization: 'Bearer ' + gbpToken } });
+      const locD = await locR.json();
+      if (locD.error) throw new Error('Locations: ' + locD.error.message);
+      const locs = locD.locations || [];
+      if (!locs.length) throw new Error('No se encontraron ubicaciones GBP.');
+      const amLoc = locs.find(l => /amalay/i.test(l.title)) || locs[0];
+      gbpLocationId = amLoc.name;
+      LS.set('gbp_location_id', gbpLocationId);
+    }
 
-    // 3. Reviews (may be restricted)
+    // 3. Reviews
     await fetchGBPReviews();
   } catch(e) {
     console.error('[GBP] fetchGBPData:', e);
     LS.set('gbp_fetch_error', e.message);
   }
+}
+
+async function gbpRefresh() {
+  const btn = document.getElementById('gbp-refresh-btn');
+  const remaining = Math.ceil((GBP_DEBOUNCE_MS - (Date.now() - _gbpLastFetch)) / 1000);
+  if (remaining > 0) {
+    if (btn) { btn.textContent = `↻ espera ${remaining}s`; btn.disabled = true; }
+    setTimeout(() => { if (btn) { btn.textContent = '↻ Actualizar'; btn.disabled = false; } }, remaining * 1000);
+    return;
+  }
+  if (btn) { btn.textContent = '↻ Cargando···'; btn.disabled = true; }
+  await fetchGBPData();
+  await renderResenas();
+  // btn re-enabled by renderResenas rebuilding the DOM
 }
 
 async function fetchGBPReviews() {
@@ -3252,7 +3282,7 @@ async function renderResenas() {
       <span class="dot dot-on"></span>
       <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--green)">Conectado · monigp75@gmail.com</span>
       ${updStr ? `<span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim)">· ${updStr}</span>` : ''}
-      <button class="gbp-refresh-btn" onclick="fetchGBPData().then(renderResenas)">↻ Actualizar</button>
+      <button class="gbp-refresh-btn" id="gbp-refresh-btn" onclick="gbpRefresh()">↻ Actualizar</button>
       <button class="gbp-refresh-btn" onclick="gbpLogout()" style="margin-left:4px">Desconectar</button>
     </div>`;
     if (fetchError) html += `<div class="gbp-api-warn" style="border-color:var(--red);color:var(--red)">⚠️ ${esc(fetchError)}</div>`;

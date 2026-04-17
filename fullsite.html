@@ -558,7 +558,7 @@ async function getRelevantMemories(agentId, taskText, crossAgent=true) {
   try {
     // Fetch top memories by salience — own agent + cross-agent
     const agentFilter = crossAgent ? '' : `&agent_id=eq.${agentId}`;
-    const rows = await sbMemFetch(`${SB_URL}/rest/v1/${MEM_TABLE}?select=id,agent_id,content,salience,sector&order=salience.desc&limit=20${agentFilter}`);
+    const rows = await sbMemFetch(`${SB_URL}/rest/v1/${MEM_TABLE}?select=id,agent_id,content,salience,sector&order=salience.desc&limit=6${agentFilter}`);
     if (!Array.isArray(rows) || !rows.length) return [];
     
     // Client-side keyword relevance scoring
@@ -574,7 +574,7 @@ async function getRelevantMemories(agentId, taskText, crossAgent=true) {
     return scored
       .filter(m => m.score > 0 || m.agent_id === agentId)
       .sort((a, b) => (b.score * b.salience) - (a.score * a.salience))
-      .slice(0, 6);
+      .slice(0, 3);
   } catch(e) { return []; }
 }
 
@@ -634,14 +634,14 @@ async function getLearningsPromptSB(agentId, taskText='') {
   
   let prompt = '\n\nMEMORIA ACTIVA (aprendizajes de misiones anteriores — aplícalos siempre):';
   if (ownAgent.length) {
-    prompt += '\n[Propios]\n' + ownAgent.slice(0, 4).map((m,i) => `${i+1}. ${m.content}`).join('\n');
+    prompt += '\n[Propios]\n' + ownAgent.slice(0, 2).map((m,i) => `${i+1}. ${m.content.substring(0,200)}`).join('\n');
     // Boost salience of used memories
-    ownAgent.slice(0, 4).forEach(m => boostSalience(m.id));
+    ownAgent.slice(0, 2).forEach(m => boostSalience(m.id));
   }
   if (crossAgent.length) {
     const labels = { contenido:'Contenido', reportes:'Reportes', ops:'Ops', kb:'KB' };
-    prompt += '\n[De otros agentes]\n' + crossAgent.slice(0, 2).map(m => `• [${labels[m.agent_id]||m.agent_id}] ${m.content}`).join('\n');
-    crossAgent.slice(0, 2).forEach(m => boostSalience(m.id));
+    prompt += '\n[De otros agentes]\n' + crossAgent.slice(0, 1).map(m => `• [${labels[m.agent_id]||m.agent_id}] ${m.content.substring(0,200)}`).join('\n');
+    crossAgent.slice(0, 1).forEach(m => boostSalience(m.id));
   }
   return prompt;
 }
@@ -995,13 +995,13 @@ async function buildSystemPrompt(agentId, taskText='') {
   const base = `Eres un agente de Fullsite, una agencia de marketing digital en Monterrey, México.\n\nCONTEXTO DE CLIENTES ACTIVOS:\n${clientContext}\n\nTAREAS PENDIENTES:\n${taskContext}\n\nResponde siempre en español. Sé concreto y accionable.` + getWansoftContext() + getObsidianContext() + getSharedMemoryContext();
 
   const specific = {
-    contenido: `\n\nTU ROL — AGENTE DE CONTENIDO:\nGeneras posts para GBP, respuestas a reseñas de Google, ideas para reels, copies para anuncios. Cuando generes contenido, dalo listo para copiar/pegar.\n\nNEGOCIO: AMALAY Coffee & Market | Plaza Duendes, San Pedro Garza García | cafeamalay.com\nHORARIOS: Lun-Mié 8am-8pm | Jue-Sáb 8am-11pm | Dom 8am-5pm\nATRIBUTOS: terraza/rooftop, pet-friendly, vegano/vegetariano, brunch, cocteles, estacionamiento gratuito, mujeres emprendedoras\nSTAFF: Oscar, Omar, Héctor | QUEJAS WhatsApp: 81 8254 3303\n\nREGLAS SEO OBLIGATORIAS PARA RESPUESTAS A RESEÑAS:\n1. SIEMPRE incluir \"AMALAY Coffee & Market\" al menos 1 vez.\n2. SIEMPRE incluir al menos 1 keyword: \"brunch San Pedro Garza García\", \"Plaza Duendes\", \"terraza\", \"desayuno Monterrey\", \"San Pedro Garza García\".\n3. Longitud ideal: 60-120 palabras.\n4. RESEÑA POSITIVA: saludo por nombre → agradecimiento específico a lo mencionado (plato, staff, ambiente) → keyword SEO integrada naturalmente → invitación a regresar con atributo único → firma: \"¡Te esperamos pronto! — Equipo AMALAY\"\n5. RESEÑA NEGATIVA: saludo empático → reconocimiento directo sin excusas → \"Contáctanos al WhatsApp 81 8254 3303\" → keyword SEO → compromiso de mejora.\n6. NUNCA respuestas genéricas. Referenciar siempre algo específico de la reseña.\n7. Si mencionan plato/bebida → inclúyelo. Si mencionan empleado → elógialo por nombre.\n8. Tono: cálido, auténtico, regio, premium sin ser pretencioso. Voz de Monica, la dueña.\n\nEJEMPLO POSITIVO: \"¡Hola [Nombre]! 🌟 Gracias por compartir tu experiencia. Nos alegra que hayas disfrutado [lo mencionado] en nuestra terraza de AMALAY Coffee & Market en Plaza Duendes. ¡Eres parte de lo que nos motiva a ser el lugar favorito de brunch en San Pedro Garza García! ¡Te esperamos pronto! — Equipo AMALAY ☕\"\n\nEJEMPLO NEGATIVO: \"Hola [Nombre], gracias por escribirnos. Lamentamos que tu visita a AMALAY Coffee & Market no haya sido la esperada. Por favor contáctanos al WhatsApp 81 8254 3303 para atenderte personalmente. Trabajamos cada día para mejorar en Plaza Duendes. — Equipo AMALAY\"`,
+    contenido: `\n\nROL CONTENIDO: Generas posts GBP, respuestas reseñas Google, copies anuncios para AMALAY Coffee & Market, Plaza Duendes, San Pedro GG. Contenido listo para copiar/pegar.\nREGLAS RESEÑAS: 60-120 palabras. Incluye "AMALAY Coffee & Market" + keyword (brunch San Pedro, terraza, desayuno MTY). Positiva: saluda por nombre→agradece lo específico→keyword→invita a regresar. Negativa: empatía→"WhatsApp 81 8254 3303"→keyword. Staff: Oscar, Omar, Héctor. Tono cálido, regio. Voz de Mónica, la dueña.`,
     reportes: `\n\nTU ROL — AGENTE DE REPORTES:\nAnalizas métricas, identificas problemas y das recomendaciones concretas. Issue crítico actual: Asset group "Pal Norte 2026" en Google Ads marcado "Limited by policy" por imágenes con alcohol (festival terminó Mar 27-29, 2026). Sé analítico y da pasos accionables.`,
     ops: `\n\nTU ROL — AGENTE DE OPERACIONES:\nGestionas prioridades, creas SOPs, defines próximos pasos, haces checklists. Ayudas a organizar el trabajo del día/semana. Sé muy práctico y organizado.`,
     kb: `\n\nTU ROL — BASE DE CONOCIMIENTO:\nRespondes cualquier pregunta sobre los clientes con información precisa. Si no tienes el dato, dilo claramente. Eres la fuente de verdad sobre la agencia y sus clientes.`,
     seo: `\n\nTU ROL — AGENTE SEO:\nOptimizas el posicionamiento de AMALAY en Google Maps y búsqueda orgánica. Meta: 4.5 estrellas. Keywords target: "brunch San Pedro Garza García", "AMALAY Coffee & Market", "Plaza Duendes", "terraza Monterrey", "desayuno San Pedro". Generas posts semanales para GBP, sugieres categorías, descripciones, atributos. Analizas reseñas para extraer keywords SEO.`,
     ads: `\n\nTU ROL — AGENTE GOOGLE ADS:\nGestionas la campaña Performance Max "Amalay Coffee Market" a $150/día (cuenta: monigp75@gmail.com). ISSUE CRÍTICO ACTIVO: Asset group "Pal Norte 2026" marcado "Limited by policy" por imágenes con alcohol — el festival terminó el 29 de marzo de 2026, hay que pausar o eliminar ese asset group urgente. Analizas rendimiento, sugieres ajustes.`,
-    reviews: `\n\nTU ROL — AGENTE DE RESEÑAS:\nGestionas la reputación online de AMALAY Coffee & Market en Plaza Duendes, San Pedro Garza García.\n\nCuando el usuario te dé una reseña, genera UNA respuesta lista para copiar/pegar en Google.\n\nREGLAS OBLIGATORIAS:\n1. Máximo 3-4 líneas (no más).\n2. Empieza mencionando el nombre del cliente.\n3. Menciona algo ESPECÍFICO de su reseña: el platillo, el mesero (Oscar, Omar, Héctor), la experiencia que describió.\n4. Incluye keywords SEO de forma natural — mínimo 2 de: "AMALAY Coffee & Market", "Plaza Duendes", "San Pedro Garza García", "brunch", "desayuno".\n5. Si la reseña está en inglés → responde en inglés.\n6. Tono: cálido y personal. NO usar frases promocionales ni exageradas ("increíble equipo", "somos los mejores", etc.).\n7. SIEMPRE termina invitando a regresar.\n\nEJEMPLO CORRECTO:\n"¡Gracias, Michelle! Nos alegra mucho saber que disfrutaste tu brunch en AMALAY Coffee & Market y que Omar te brindó un servicio excelente. Nos encanta ser un lugar para pasar un momento agradable en San Pedro Garza García. ¡Te esperamos pronto!"\n\nPara quejas serias: empatía breve + "Contáctanos al WhatsApp 81 8254 3303 para atenderte personalmente." + invitación a regresar.\n\nResponde SOLO con el texto listo para publicar, sin comillas ni explicación adicional.`,
+    reviews: `\n\nROL RESEÑAS: Respuestas Google para AMALAY Coffee & Market, Plaza Duendes, San Pedro GG.\nReglas: máx 3-4 líneas. Nombra al cliente + algo específico de la reseña + 2 keywords SEO (AMALAY, brunch, Plaza Duendes, San Pedro GG). En inglés si la reseña está en inglés. Tono cálido. Termina invitando a regresar. Quejas: empatía + "WhatsApp 81 8254 3303". Responde SOLO el texto listo para publicar.`,
     wansoft_ag: `\n\nTU ROL — AGENTE WANSOFT & OPERACIONES:\nAnalizas los datos reales del POS de AMALAY. Identifica tendencias: platillos estrella, meseros top, horas pico, mix de pago. Usa los datos reales de Wansoft que tienes en el contexto. Calcula métricas derivadas (% descuento, ticket promedio, etc). Alerta sobre anomalías. Da recomendaciones operativas concretas.`
   };
 
@@ -1080,7 +1080,7 @@ async function sendMsg() {
   const apiKey = LS.get('apikey');
   try {
     const sys = await buildSystemPrompt(currentAgent, userMsg);
-    const reply = await groqCall(sys, chatHistory[currentAgent], 1000) || 'Error al obtener respuesta.';
+    const reply = await groqCall(sys, chatHistory[currentAgent].slice(-4), 400) || 'Error al obtener respuesta.';
     chatHistory[currentAgent].push({ role:'assistant', content:reply });
     saveChatHistory();
     // Learn from this chat exchange (every 3rd message to avoid noise)
@@ -1845,7 +1845,7 @@ function removeMissionTyping() {
   document.getElementById('mission-typing')?.remove();
 }
 
-async function callClaude(systemPrompt, messages, maxTokens=800) {
+async function callClaude(systemPrompt, messages, maxTokens=400) {
   try {
     return await groqCall(systemPrompt, messages, maxTokens) || 'Error.';
   } catch(e) { return 'Error: ' + e.message; }
@@ -2610,7 +2610,7 @@ Genera: 1 post de Google Business Profile (GBP) listo para publicar + 1 recomend
 // GROQ API — llama-3.1-8b-instant (directo, sin proxy)
 // Key se configura en ⚙ Ajustes (campo "API Key")
 // ============================================================
-async function groqCall(systemPrompt, messages, maxTokens=600) {
+async function groqCall(systemPrompt, messages, maxTokens=400) {
   const apiKey = LS.get('apikey');
   if(!apiKey) throw new Error('Sin API key — configúrala en ⚙ Ajustes');
   const allMessages = systemPrompt

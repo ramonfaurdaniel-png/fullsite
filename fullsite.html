@@ -984,12 +984,12 @@ async function buildSystemPrompt(agentId, taskText='') {
   const activeClients = clients.filter(c=>c.status==='active');
   const pendingTasks = tasks.filter(t=>t.status!=='done');
 
-  const clientContext = activeClients.map(c =>
-    `CLIENTE: ${c.name}\n- Contacto: ${c.contact} | ${c.email} | ${c.phone}\n- Web: ${c.website}\n- Servicios: ${c.services.join(', ')}\n- Budget: ${c.budget}\n- Notas: ${c.notes}`
-  ).join('\n\n');
+  const clientContext = activeClients.slice(0, 3).map(c =>
+    `${c.name}: ${c.services.join(', ')} | ${c.website}`
+  ).join('\n');
 
-  const taskContext = pendingTasks.map(t =>
-    `[${t.priority.toUpperCase()}] ${t.title} → ${t.client} | agente: ${t.agent} | estado: ${t.status}`
+  const taskContext = pendingTasks.slice(0, 3).map(t =>
+    `[${t.priority.toUpperCase()}] ${t.title} → ${t.client}`
   ).join('\n');
 
   const base = `Eres un agente de Fullsite, una agencia de marketing digital en Monterrey, México.\n\nCONTEXTO DE CLIENTES ACTIVOS:\n${clientContext}\n\nTAREAS PENDIENTES:\n${taskContext}\n\nResponde siempre en español. Sé concreto y accionable.` + getWansoftContext() + getObsidianContext() + getSharedMemoryContext();

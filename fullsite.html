@@ -2607,30 +2607,34 @@ Genera: 1 post de Google Business Profile (GBP) listo para publicar + 1 recomend
 
 
 // ============================================================
-// GROQ API — llama-3.1-8b-instant (directo, sin proxy)
+// GEMINI FLASH API — gemini-1.5-flash-latest (directo, sin proxy)
 // Key se configura en ⚙ Ajustes (campo "API Key")
 // ============================================================
 async function groqCall(systemPrompt, messages, maxTokens=400) {
   const apiKey = LS.get('apikey');
   if(!apiKey) throw new Error('Sin API key — configúrala en ⚙ Ajustes');
-  const allMessages = systemPrompt
-    ? [{ role: 'system', content: systemPrompt }, ...messages]
-    : messages;
-  const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': 'Bearer ' + apiKey,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'llama-3.1-8b-instant',
-      max_tokens: maxTokens,
-      messages: allMessages
-    })
-  });
+
+  // Debug: tamaño del request
+  const sysLen = systemPrompt ? systemPrompt.length : 0;
+  const msgsLen = messages.reduce((s, m) => s + (m.content || '').length, 0);
+  console.log('[Gemini] system:', sysLen, 'chars | msgs:', msgsLen, 'chars | ~', Math.round((sysLen + msgsLen) / 4), 'tokens estimados');
+
+  // Convertir formato OpenAI → Gemini (assistant → model)
+  const contents = messages.map(m => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: m.content }]
+  }));
+
+  const body = { contents, generationConfig: { maxOutputTokens: maxTokens } };
+  if (systemPrompt) body.systemInstruction = { parts: [{ text: systemPrompt }] };
+
+  const resp = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+  );
   const data = await resp.json();
-  if(data.error) throw new Error(data.error.message);
-  return data.choices?.[0]?.message?.content || null;
+  if (data.error) throw new Error(data.error.message);
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
 }
 
 async function callAgentAPI(agentId, prompt) {

@@ -1860,14 +1860,6 @@ async function runMission() {
   const missionText = ta.value.trim();
   if(!missionText) return;
 
-  const apiKey = LS.get('apikey');
-  if(!apiKey) { 
-    missionThread.push({ agent:'system', content:'⚙️ API key no configurada.\n\nVe a ⚙ Ajustes (arriba a la derecha) y pega tu clave de Groq (gsk_...).\n\nSi ya la tenías en otra versión del archivo, debes volver a ingresarla aquí.' });
-    renderMissionThread();
-    btn.disabled = false;
-    return; 
-  }
-
   ta.value = '';
   btn.disabled = true;
 
@@ -2615,21 +2607,23 @@ Genera: 1 post de Google Business Profile (GBP) listo para publicar + 1 recomend
 
 
 // ============================================================
-// GROQ API — 100% GRATIS (meta-llama/llama-3.1-8b-instruct)
+// GROQ API — llama-3.1-8b-instant (directo, sin proxy)
+// Key se configura en ⚙ Ajustes (campo "API Key")
 // ============================================================
-async function groqCall(systemPrompt, messages, maxTokens=800) {
+async function groqCall(systemPrompt, messages, maxTokens=600) {
   const apiKey = LS.get('apikey');
-  if(!apiKey) throw new Error('Sin API key');
+  if(!apiKey) throw new Error('Sin API key — configúrala en ⚙ Ajustes');
   const allMessages = systemPrompt
     ? [{ role: 'system', content: systemPrompt }, ...messages]
     : messages;
-  const resp = await fetch('https://fullsite-proxy.ramonfaur-daniel.workers.dev', {
+  const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
+      'Authorization': 'Bearer ' + apiKey,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'meta-llama/llama-3.1-8b-instruct',
+      model: 'llama-3.1-8b-instant',
       max_tokens: maxTokens,
       messages: allMessages
     })

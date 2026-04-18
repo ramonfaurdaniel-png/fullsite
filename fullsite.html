@@ -651,7 +651,7 @@ let _currentMissionTask = '';
 
 async function extractAndSaveLearnings(missionText, allOutputs, agentIds) {
   try {
-    const apiKey = LS.get('apikey');
+    const apiKey = LS.get('warroom_api_key');
     if (!apiKey) return;
     
     const extractPrompt = `Eres el sistema de memoria del War Room de Fullsite. Analiza esta misión y extrae aprendizajes concretos para que los agentes mejoren en el futuro.
@@ -758,7 +758,7 @@ function showNotif(msg, color) {
 // ─── APRENDIZAJE DE CHATS INDIVIDUALES ───────────────────────────────────────
 async function extractChatLearning(agentId, userMsg, agentReply) {
   try {
-    const apiKey = LS.get('apikey');
+    const apiKey = LS.get('warroom_api_key');
     if(!apiKey) return;
     const prompt = 'Extrae 1 aprendizaje concreto de este intercambio para que el agente ' + agentId + ' mejore en el futuro.\n\nUSUARIO: ' + userMsg.slice(0,150) + '\n\nAGENTE: ' + agentReply.slice(0,300) + '\n\nResponde SOLO con este JSON sin backticks:\n{"learning":"instrucción específica en máx 120 chars","sector":"semantic o episodic"}';
     const raw = ((await groqCall(null, [{role:'user',content:prompt}], 200)) || '').replace(/```json|```/g,'').trim();
@@ -1077,7 +1077,7 @@ async function sendMsg() {
   renderMsgs();
   addTyping();
 
-  const apiKey = LS.get('apikey');
+  const apiKey = LS.get('warroom_api_key');
   try {
     const sys = await buildSystemPrompt(currentAgent, userMsg);
     const reply = await groqCall(sys, chatHistory[currentAgent].slice(-4), 400) || 'Error al obtener respuesta.';
@@ -2402,7 +2402,7 @@ function openModal(type) {
     sel.innerHTML = getClients().map(c=>`<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('');
   }
   if(type==='settings') {
-    document.getElementById('s-key').value = LS.get('apikey') || '';
+    document.getElementById('s-key').value = LS.get('warroom_api_key') || '';
     document.getElementById('s-tgid').value = LS.get('tg_chat_id') || '';
   }
   document.getElementById('overlay-'+type).classList.add('show');
@@ -2469,7 +2469,7 @@ async function saveContent() {
 
 function updateKey() {
   const key = document.getElementById('s-key').value.trim();
-  if(key) LS.set('apikey', key);
+  if(key) LS.set('warroom_api_key', key);
   const tgid = document.getElementById('s-tgid').value.trim();
   if(tgid) LS.set('tg_chat_id', tgid);
   closeModal('settings');
@@ -2477,7 +2477,7 @@ function updateKey() {
 
 function resetAll() {
   if(!confirm('¿Seguro? Se borrarán las keys y el historial de chat (los datos en Supabase se mantienen).')) return;
-  ['apikey','chat_history'].forEach(k => LS.del(k));
+  ['warroom_api_key','chat_history'].forEach(k => LS.del(k));
   location.reload();
 }
 
@@ -2486,8 +2486,8 @@ function resetAll() {
 // ============================================================
 function saveKey() {
   const key = document.getElementById('setup-key').value.trim();
-  if(!key) { alert('Clave inválida. Debe empezar con gsk_  — obtenla gratis en console.groq.com'); return; }
-  LS.set('apikey', key);
+  if(!key) { alert('Clave inválida. Debe empezar con sk-ant-  — obtenla en console.anthropic.com'); return; }
+  LS.set('warroom_api_key', key);
   boot();
 }
 
@@ -2607,34 +2607,33 @@ Genera: 1 post de Google Business Profile (GBP) listo para publicar + 1 recomend
 
 
 // ============================================================
-// GEMINI FLASH API — gemini-1.5-flash-latest (directo, sin proxy)
-// Key se configura en ⚙ Ajustes (campo "API Key")
+// ANTHROPIC API — claude-haiku-4-5 (directo, sin proxy)
+// Key se configura en ⚙ Ajustes (campo "API Key") — empieza con sk-ant-
 // ============================================================
 async function groqCall(systemPrompt, messages, maxTokens=400) {
-  const apiKey = LS.get('apikey');
+  const apiKey = LS.get('warroom_api_key');
   if(!apiKey) throw new Error('Sin API key — configúrala en ⚙ Ajustes');
 
   // Debug: tamaño del request
   const sysLen = systemPrompt ? systemPrompt.length : 0;
   const msgsLen = messages.reduce((s, m) => s + (m.content || '').length, 0);
-  console.log('[Gemini] system:', sysLen, 'chars | msgs:', msgsLen, 'chars | ~', Math.round((sysLen + msgsLen) / 4), 'tokens estimados');
+  console.log('[Claude] system:', sysLen, 'chars | msgs:', msgsLen, 'chars | ~', Math.round((sysLen + msgsLen) / 4), 'tokens estimados');
 
-  // Convertir formato OpenAI → Gemini (assistant → model)
-  const contents = messages.map(m => ({
-    role: m.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: m.content }]
-  }));
+  const body = { model: 'claude-haiku-4-5-20251001', max_tokens: maxTokens, messages };
+  if (systemPrompt) body.system = systemPrompt;
 
-  const body = { contents, generationConfig: { maxOutputTokens: maxTokens } };
-  if (systemPrompt) body.systemInstruction = { parts: [{ text: systemPrompt }] };
-
-  const resp = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
-    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
-  );
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  });
   const data = await resp.json();
   if (data.error) throw new Error(data.error.message);
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
+  return data.content?.[0]?.text || null;
 }
 
 async function callAgentAPI(agentId, prompt) {
@@ -2787,7 +2786,7 @@ async function executeAgentActions() {
 }
 
 async function autonomousLoop() {
-  if(!LS.get('apikey')) return;
+  if(!LS.get('warroom_api_key')) return;
   sharedBrain.lastCycle = new Date().toISOString();
   const delay = ms => new Promise(r => setTimeout(r, ms));
 
@@ -3810,7 +3809,7 @@ document.head.appendChild(autoStyle);
 
 // Start
 window.addEventListener('DOMContentLoaded', () => {
-  if(LS.get('apikey')) { boot(); }
+  if(LS.get('warroom_api_key')) { boot(); }
   else { document.getElementById('setup').style.display = 'flex'; }
 });
 </script>

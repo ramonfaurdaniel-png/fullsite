@@ -1868,6 +1868,15 @@ async function runMission() {
   missionThread.push({ agent:'user', content: missionText });
   renderMissionThread();
 
+  // Saludo directo — no despacha agentes
+  if (/^(hola|hi|buenas|buenos\s*(d[ií]as?|tardes?|noches?)|hey|qué tal|que tal)\b/i.test(missionText)) {
+    removeMissionTyping();
+    missionThread.push({ agent:'orchestrator', content:'👋 ¡Hola! ¿En qué trabajamos hoy?' });
+    renderMissionThread();
+    btn.disabled = false;
+    return;
+  }
+
   // Context for orchestrator
   const clients = getClients();
   const tasks = getTasks();
@@ -1937,9 +1946,17 @@ Usa 1-3 agentes según necesites. Ejemplos de id válidos: contenido, reportes, 
 
     // Step 2: Run each agent in sequence
     let previousOutputs = '';
+    let agentIndex = 0;
     for(const step of plan.agents) {
       const agentId = step.id;
       if(!AGENT_DEFS[agentId]) continue;
+
+      // Rate-limit: 15s between calls to stay under Groq 6000 TPM
+      if(agentIndex > 0) {
+        if(pxTxt) pxTxt.textContent = `⏳ Esperando 15s (límite de API)...`;
+        await new Promise(r => setTimeout(r, 15000));
+      }
+      agentIndex++;
 
       // Animate: agent walks to desk and starts typing
       if(pxTxt) pxTxt.textContent = `${AGENT_DEFS[agentId].name} trabajando...`;

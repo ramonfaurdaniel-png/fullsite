@@ -322,6 +322,24 @@ hr.div{border:none;border-top:1px solid var(--border);margin:16px 0;}
 .px-agent-st .dot{width:5px;height:5px;}
 .px-agent-st.active{color:var(--green);}
 .px-agent-st.thinking{color:var(--amber);}
+/* ---- BRIEFING TAB ---- */
+.briefing-wrap{max-width:520px;margin:32px auto;padding:0 12px;}
+.briefing-meta{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.briefing-avatar{width:36px;height:36px;border-radius:50%;background:#2b5797;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.briefing-sender{font-size:12px;font-weight:700;color:#7aa9f7;}
+.briefing-card{background:#1e2c3a;border-radius:0 14px 14px 14px;padding:14px 16px;position:relative;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.8;color:#d1dbe8;box-shadow:0 2px 12px #0007;}
+.briefing-card::before{content:'';position:absolute;left:-7px;top:0;width:0;height:0;border-top:8px solid #1e2c3a;border-left:8px solid transparent;}
+.briefing-ts{font-size:9px;color:#7a8fa0;text-align:right;margin-top:8px;}
+.briefing-section{margin-top:10px;padding-top:8px;border-top:1px solid #2e4056;}
+.briefing-section:first-child{border-top:none;padding-top:0;margin-top:0;}
+.briefing-label{font-size:9px;color:#7aa9f7;letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px;}
+.briefing-val-pos{color:#00f5a0;}
+.briefing-val-neg{color:#f87171;}
+.briefing-val-neu{color:#94a3b8;}
+.briefing-send-btn{display:block;width:100%;margin-top:14px;background:#2b5797;border:none;border-radius:10px;padding:10px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#fff;cursor:pointer;transition:background .15s;text-align:center;}
+.briefing-send-btn:hover{background:#3b6fad;}
+.briefing-send-btn:disabled{opacity:.5;cursor:not-allowed;}
+.briefing-refresh{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim);text-align:center;margin-top:8px;}
 /* ---- QUICK TASKS ---- */
 .cp-quick-tasks{display:flex;flex-wrap:wrap;gap:4px;padding:6px 10px;border-bottom:1px solid var(--border);background:var(--surface);}
 .cp-qt-btn{font-family:'JetBrains Mono',monospace;font-size:9px;padding:3px 8px;border-radius:5px;border:1px solid var(--border2);background:var(--card);color:var(--dim);cursor:pointer;transition:all .15s;text-align:left;max-width:100%;}
@@ -426,6 +444,7 @@ hr.div{border:none;border-top:1px solid var(--border);margin:16px 0;}
     <nav class="sidebar">
       <div class="nl">Sistema</div>
       <button class="ni on" onclick="showTab('warroom',this)">⬡ War Room</button>
+      <button class="ni" onclick="showTab('briefing',this)">☀️ Briefing</button>
       <button class="ni" onclick="showTab('clientes',this)">◈ Clientes</button>
       <button class="ni" onclick="showTab('tareas',this)">◻ Tareas</button>
       <button class="ni" onclick="showTab('contenido',this)">◇ Contenido</button>
@@ -453,6 +472,7 @@ hr.div{border:none;border-top:1px solid var(--border);margin:16px 0;}
     <!-- Main -->
     <main class="main">
       <div id="tab-warroom"></div>
+      <div id="tab-briefing" style="display:none"></div>
       <div id="tab-clientes" style="display:none"></div>
       <div id="tab-tareas" style="display:none"></div>
       <div id="tab-contenido" style="display:none"></div>
@@ -2112,7 +2132,7 @@ Usa 1-3 agentes según necesites. Ejemplos de id válidos: contenido, reportes, 
 // ============================================================
 // TAB RENDERING
 // ============================================================
-const TABS = ['warroom','wansoft','clientes','tareas','contenido','reportes','resenas','graph'];
+const TABS = ['warroom','briefing','wansoft','clientes','tareas','contenido','reportes','resenas','graph'];
 let currentTab = 'warroom';
 
 function showTab(id, btn) {
@@ -2124,7 +2144,7 @@ function showTab(id, btn) {
 }
 
 function renderTab(id) {
-  const fns = { warroom:renderWarRoom, wansoft:renderWansoft, clientes:renderClientes, tareas:renderTareas, contenido:renderContenido, reportes:renderReportes, resenas:renderResenas, graph:renderGraph };
+  const fns = { warroom:renderWarRoom, briefing:renderBriefing, wansoft:renderWansoft, clientes:renderClientes, tareas:renderTareas, contenido:renderContenido, reportes:renderReportes, resenas:renderResenas, graph:renderGraph };
   if(fns[id]) fns[id]();
 }
 
@@ -2650,6 +2670,136 @@ function dateStr() {
 function tick() {
   const t = new Date();
   document.getElementById('clk').textContent = t.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+}
+
+// ── Briefing Tab ─────────────────────────────────────────────
+let _briefingData = null;
+let _briefingRefreshId = null;
+
+async function fetchBriefingData() {
+  const r = await fetch(`${SB_URL}/rest/v1/wansoft_kpis?id=eq.amalay&select=*`,
+    { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY } });
+  const rows = await r.json();
+  return Array.isArray(rows) ? rows[0] : null;
+}
+
+async function renderBriefing() {
+  const el = document.getElementById('tab-briefing');
+  if(!el) return;
+  el.innerHTML = `<div class="briefing-wrap"><div class="briefing-refresh">Cargando datos…</div></div>`;
+  try {
+    _briefingData = await fetchBriefingData();
+  } catch(e) { _briefingData = null; }
+
+  const w = _briefingData || {};
+  const tasks = getTasks();
+  const urgent = tasks.filter(t => t.priority==='high' && t.status!=='done');
+
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const timeStr = now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+
+  const ventas = w.ventas_dia ?? null;
+  const ticket = w.ticket_promedio ?? null;
+  const topMesero = w.top_server || (w.meseros?.[0]?.nombre) || '–';
+  const updatedAt = w.updated_at ? new Date(w.updated_at) : null;
+  const syncAgo = updatedAt ? Math.floor((Date.now() - updatedAt.getTime()) / 60000) : null;
+  const syncOk = syncAgo !== null && syncAgo < 25;
+
+  const fmtVal = v => v != null ? fmtM(v) : '–';
+  const valClass = v => v == null ? 'briefing-val-neu' : v >= 0 ? 'briefing-val-pos' : 'briefing-val-neg';
+
+  const msgText = buildBriefingText(w, urgent, dateStr, syncAgo, syncOk);
+
+  el.innerHTML = `
+  <div class="briefing-wrap">
+    <div class="briefing-meta">
+      <div class="briefing-avatar">🤖</div>
+      <div class="briefing-sender">War Room · AMALAY</div>
+    </div>
+    <div class="briefing-card">
+      <div class="briefing-section">
+        <div style="font-size:13px;margin-bottom:8px">☀️ Buenos días Daniel — <span style="color:#7aa9f7">${dateStr}</span></div>
+      </div>
+      <div class="briefing-section">
+        <div class="briefing-label">AMALAY — datos del día</div>
+        <div>Ventas netas: <span class="${valClass(ventas)}">${fmtVal(ventas)}</span></div>
+        <div>Ticket promedio: <span class="${valClass(ticket)}">${fmtVal(ticket)}</span></div>
+        <div>Top mesero: <span style="color:#e2e8f0">${esc(topMesero)}</span></div>
+        ${w.half_half_total != null ? `<div>Half &amp; Half: <span class="briefing-val-pos">${fmtM(w.half_half_total)}</span></div>` : ''}
+        ${w.chilaquiles_total != null ? `<div>Chilaquiles: <span class="briefing-val-neu">${fmtM(w.chilaquiles_total)}</span></div>` : ''}
+      </div>
+      <div class="briefing-section">
+        <div class="briefing-label">Pendientes urgentes</div>
+        ${urgent.length
+          ? urgent.slice(0,5).map(t=>`<div>• <span style="color:#fca5a5">${esc(t.title)}</span> <span style="color:#4b5563">[${esc(t.agent||'')}]</span></div>`).join('')
+          : '<div style="color:#4ade80">✓ Sin urgentes</div>'}
+      </div>
+      <div class="briefing-section">
+        <div class="briefing-label">Sistema</div>
+        <div>Wansoft sync: <span class="${syncOk?'briefing-val-pos':'briefing-val-neg'}">${syncAgo!=null?`hace ${syncAgo}min ${syncOk?'✓':'⚠️ CAÍDO'}':'–'}</span></div>
+        <div>Telegram bot: <span class="briefing-val-pos">✓ activo</span></div>
+        <div>Supabase: <span class="briefing-val-pos">✓ conectado</span></div>
+      </div>
+      <div class="briefing-ts">${timeStr} · auto-refresh 60s</div>
+    </div>
+    <button class="briefing-send-btn" id="briefing-tg-btn" onclick="sendBriefingTelegram()">
+      📱 Enviar por Telegram
+    </button>
+    <div class="briefing-refresh" id="briefing-last-sent"></div>
+  </div>`;
+
+  // Auto-refresh
+  if(_briefingRefreshId) clearInterval(_briefingRefreshId);
+  _briefingRefreshId = setInterval(() => { if(currentTab==='briefing') renderBriefing(); }, 60000);
+}
+
+function buildBriefingText(w, urgent, dateStr, syncAgo, syncOk) {
+  const lines = [
+    `☀️ Buenos días Daniel — ${dateStr}`,
+    '',
+    `AMALAY — DATOS DEL DÍA:`,
+    `- Ventas netas: ${w.ventas_dia!=null?fmtM(w.ventas_dia):'–'}`,
+    `- Ticket promedio: ${w.ticket_promedio!=null?fmtM(w.ticket_promedio):'–'}`,
+    `- Top mesero: ${w.top_server || (w.meseros?.[0]?.nombre) || '–'}`,
+    '',
+    `PENDIENTES URGENTES:`,
+    ...(urgent.length ? urgent.slice(0,5).map(t=>`- ${t.title}`) : ['✓ Sin urgentes']),
+    '',
+    `SISTEMA:`,
+    `- Wansoft sync: ${syncAgo!=null?`hace ${syncAgo}min ${syncOk?'✓':'⚠️ CAÍDO'}':'–'}`,
+    `- Telegram bot: ✓ activo`,
+  ];
+  return lines.join('\n');
+}
+
+async function sendBriefingTelegram() {
+  const btn = document.getElementById('briefing-tg-btn');
+  const lastEl = document.getElementById('briefing-last-sent');
+  if(btn) { btn.disabled = true; btn.textContent = '⏳ Enviando…'; }
+  const w = _briefingData || {};
+  const tasks = getTasks();
+  const urgent = tasks.filter(t => t.priority==='high' && t.status!=='done');
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const syncAgo = w.updated_at ? Math.floor((Date.now()-new Date(w.updated_at).getTime())/60000) : null;
+  const text = buildBriefingText(w, urgent, dateStr, syncAgo, syncAgo!=null&&syncAgo<25);
+  try {
+    const resp = await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: 7654040494, text, parse_mode: 'HTML' })
+    });
+    const d = await resp.json();
+    if(d.ok) {
+      if(lastEl) lastEl.textContent = `✓ Enviado a las ${now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})}`;
+    } else {
+      if(lastEl) lastEl.textContent = `⚠️ Error: ${d.description||'desconocido'}`;
+    }
+  } catch(e) {
+    if(lastEl) lastEl.textContent = `⚠️ Error de red: ${e.message}`;
+  }
+  if(btn) { btn.disabled = false; btn.textContent = '📱 Enviar por Telegram'; }
 }
 
 // ── System Status card (sidebar) ─────────────────────────────

@@ -322,6 +322,38 @@ hr.div{border:none;border-top:1px solid var(--border);margin:16px 0;}
 .px-agent-st .dot{width:5px;height:5px;}
 .px-agent-st.active{color:var(--green);}
 .px-agent-st.thinking{color:var(--amber);}
+/* ---- QUICK TASKS ---- */
+.cp-quick-tasks{display:flex;flex-wrap:wrap;gap:4px;padding:6px 10px;border-bottom:1px solid var(--border);background:var(--surface);}
+.cp-qt-btn{font-family:'JetBrains Mono',monospace;font-size:9px;padding:3px 8px;border-radius:5px;border:1px solid var(--border2);background:var(--card);color:var(--dim);cursor:pointer;transition:all .15s;text-align:left;max-width:100%;}
+.cp-qt-btn:hover{color:var(--text);border-color:var(--green);background:#0d1f10;}
+.cp-qt-high{border-color:#ef444455;color:#ef4444aa;}
+.cp-qt-high:hover{border-color:#ef4444;color:#ef4444;background:#1f0d0d;}
+.cp-qt-medium{border-color:#f59e0b55;color:#f59e0baa;}
+.cp-qt-medium:hover{border-color:#f59e0b;color:#f59e0b;background:#1f1608;}
+.cp-qt-low{border-color:#4ade8055;color:#4ade80aa;}
+.cp-qt-low:hover{border-color:#4ade80;color:#4ade80;background:#0d1f10;}
+/* ---- MINI GRAPH ---- */
+@keyframes mg-pulse{0%,100%{opacity:.5;r:12;}50%{opacity:1;r:14;}}
+@keyframes mg-glow{0%,100%{filter:drop-shadow(0 0 3px currentColor);}50%{filter:drop-shadow(0 0 8px currentColor);}}
+.mg-node-working{animation:mg-glow .6s ease-in-out infinite;}
+.mg-node-done{animation:none;opacity:1;}
+.mg-wrap{background:#07070f;border:1px solid var(--border);border-radius:10px;margin-bottom:14px;overflow:hidden;}
+.mg-title{font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--dim);padding:6px 12px;letter-spacing:.08em;}
+/* ---- SYSTEM STATUS ---- */
+.sys-status-card{margin:12px 8px 0;padding:10px 10px;background:var(--card);border:1px solid var(--border);border-radius:8px;font-family:'JetBrains Mono',monospace;}
+.sys-status-title{font-size:8px;color:var(--dim);letter-spacing:.08em;margin-bottom:8px;text-transform:uppercase;}
+.sys-status-row{display:flex;align-items:center;gap:6px;font-size:9px;color:var(--muted);padding:2px 0;}
+.sys-status-dot{font-size:8px;}
+.sys-status-val{margin-left:auto;font-size:9px;color:var(--dim);}
+/* ---- PARTICLES ---- */
+@keyframes ptcl-rise{0%{transform:translateY(0) scale(1);opacity:.5;}100%{transform:translateY(-120px) scale(.3);opacity:0;}}
+.ptcl{position:absolute;width:2px;height:2px;border-radius:50%;background:var(--green);pointer-events:none;animation:ptcl-rise linear forwards;}
+.mission-panel{position:relative;}
+/* ---- STATUS DOTS ENHANCED ---- */
+@keyframes dot-working{0%,100%{box-shadow:0 0 0 0 #4ade8066;}50%{box-shadow:0 0 0 4px #4ade8022;}}
+.dot-working{background:#4ade80;animation:dot-working .5s ease-in-out infinite!important;}
+.dot-done{background:#4ade80;animation:none!important;}
+.dot-error{background:#ef4444;animation:none!important;}
 /* ---- GBP REVIEWS ---- */
 .gbp-connect-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:36px;text-align:center;max-width:460px;margin:40px auto;}
 .gbp-g-icon{width:44px;height:44px;background:#4285f4;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:white;margin:0 auto 14px;letter-spacing:0;}
@@ -410,6 +442,13 @@ hr.div{border:none;border-top:1px solid var(--border);margin:16px 0;}
       <button class="ni" onclick="openAgent('ads')">· Google Ads</button>
       <button class="ni" onclick="openAgent('reviews')">· Reseñas</button>
       <button class="ni" onclick="openAgent('wansoft_ag')">· Wansoft IA</button>
+      <div class="sys-status-card" id="sys-status-card">
+        <div class="sys-status-title">Sistema</div>
+        <div class="sys-status-row"><span class="sys-status-dot" style="color:#4ade80">●</span>Supabase<span class="sys-status-val" style="color:#4ade80">LIVE</span></div>
+        <div class="sys-status-row"><span class="sys-status-dot" style="color:#4ade80">●</span>Telegram Bot<span class="sys-status-val" style="color:#4ade80">ACTIVE</span></div>
+        <div class="sys-status-row"><span id="sys-wansoft-dot" class="sys-status-dot" style="color:#4ade80">●</span>Wansoft Sync<span class="sys-status-val" id="sys-wansoft-age">–</span></div>
+        <div class="sys-status-row"><span class="sys-status-dot" style="color:#4ade80">●</span>Google Ads<span class="sys-status-val" style="color:#4ade80">ACTIVE</span></div>
+      </div>
     </nav>
     <!-- Main -->
     <main class="main">
@@ -432,6 +471,7 @@ hr.div{border:none;border-top:1px solid var(--border);margin:16px 0;}
         <button class="cp-share-btn" onclick="shareLastMsg()">🧠 Compartir insight</button>
         <button class="cp-share-btn" onclick="clearAgentChat()">↺ Limpiar</button>
       </div>
+      <div class="cp-quick-tasks" id="cp-quick-tasks" style="display:none"></div>
       <div class="cp-msgs" id="cp-msgs"></div>
       <div class="cp-input-row">
         <textarea class="cp-ta" id="cp-ta" placeholder="Escríbele al agente..." onkeydown="handleKey(event)"></textarea>
@@ -875,6 +915,36 @@ const AGENT_DEFS = {
   wansoft_ag: { name:'Wansoft IA',  role:'Operaciones & ventas POS',   dot:'on' }
 };
 
+const AGENT_QUICK_TASKS = {
+  contenido: [
+    ['Crear 3 ideas de posts basadas en el producto más vendido esta semana','medium'],
+    ['Generar respuesta a todas las reseñas sin responder en GBP','high'],
+    ['Preparar contenido para el próximo fin de semana','medium'],
+  ],
+  reportes: [
+    ['Comparativa ventas esta semana vs semana pasada','high'],
+    ['Leaderboard meseros con ticket promedio actualizado','high'],
+    ['Detectar meseros con caída >20% vs su promedio','medium'],
+  ],
+  ops: [
+    ['Revisar métricas Google Ads y sugerir ajuste de presupuesto','high'],
+    ['Verificar que AutoSync de Wansoft esté activo','high'],
+    ['Revisar tareas urgentes sin atender','medium'],
+  ],
+  kb: [
+    ['Guardar récord de ventas si hoy superó el promedio histórico','low'],
+    ['Actualizar contexto de eventos próximos en Monterrey','medium'],
+  ],
+  reviews: [
+    ['Generar borrador de respuesta para cada reseña pendiente','high'],
+    ['Alertar si calificación baja de 4.7 en Google','high'],
+  ],
+  wansoft_ag: [
+    ['Verificar que AutoSync esté activo y datos frescos','high'],
+    ['Reportar cuántos Half&Half se vendieron hoy','medium'],
+  ],
+};
+
 // ============================================================
 // SHARED MEMORY — Agentes aprenden entre ellos
 // ============================================================
@@ -1027,8 +1097,28 @@ function openAgent(id) {
   document.querySelectorAll('.pill').forEach(el => el.classList.remove('sel'));
   const pill = document.getElementById('pill-'+id);
   if(pill) pill.classList.add('sel');
+  // Quick tasks
+  const qt = AGENT_QUICK_TASKS[id] || [];
+  const qtEl = document.getElementById('cp-quick-tasks');
+  if(qtEl) {
+    if(qt.length) {
+      qtEl.innerHTML = qt.map(([text, pri]) =>
+        `<button class="cp-qt-btn cp-qt-${pri}" onclick="sendQuickTask(${JSON.stringify(text)})" title="${text}">${text.length>48?text.slice(0,48)+'…':text}</button>`
+      ).join('');
+      qtEl.style.display = 'flex';
+    } else {
+      qtEl.style.display = 'none';
+    }
+  }
   renderMsgs();
   setTimeout(() => document.getElementById('cp-ta').focus(), 200);
+}
+
+function sendQuickTask(text) {
+  const ta = document.getElementById('cp-ta');
+  if(!ta) return;
+  ta.value = text;
+  sendMsg();
 }
 
 function closeAgent() {
@@ -2119,6 +2209,45 @@ function renderWarRoom() {
     </div>
     <div style="margin-top:22px">
       <div class="sec"><span class="sec-t">Misión Multi-Agente</span><span class="mission-badge">BETA</span></div>
+      <div class="mg-wrap">
+        <div class="mg-title">⬡ AGENTES — estado en tiempo real</div>
+        <svg id="mini-graph-svg" width="100%" height="140" viewBox="0 0 360 140" style="display:block;">
+          <defs>
+            <filter id="mg-glow-f" x="-60%" y="-60%" width="220%" height="220%">
+              <feGaussianBlur stdDeviation="3" result="b"/>
+              <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+          <!-- connecting lines from orchestrator (180,70) to each -->
+          <line x1="180" y1="70" x2="55"  y2="30"  stroke="#ffffff0d" stroke-width="1"/>
+          <line x1="180" y1="70" x2="180" y2="15"  stroke="#ffffff0d" stroke-width="1"/>
+          <line x1="180" y1="70" x2="305" y2="30"  stroke="#ffffff0d" stroke-width="1"/>
+          <line x1="180" y1="70" x2="55"  y2="115" stroke="#ffffff0d" stroke-width="1"/>
+          <line x1="180" y1="70" x2="180" y2="128" stroke="#ffffff0d" stroke-width="1"/>
+          <line x1="180" y1="70" x2="305" y2="115" stroke="#ffffff0d" stroke-width="1"/>
+          <!-- contenido -->
+          <circle id="mgn-contenido"   cx="55"  cy="30"  r="12" fill="#0d0d0d" stroke="#f59e0b" stroke-width="1.5"/>
+          <text x="55"  y="34"  text-anchor="middle" fill="#f59e0b" font-size="7" font-family="monospace">CON</text>
+          <!-- reportes -->
+          <circle id="mgn-reportes"    cx="180" cy="15"  r="12" fill="#0d0d0d" stroke="#60a5fa" stroke-width="1.5"/>
+          <text x="180" y="19"  text-anchor="middle" fill="#60a5fa" font-size="7" font-family="monospace">REP</text>
+          <!-- ops -->
+          <circle id="mgn-ops"         cx="305" cy="30"  r="12" fill="#0d0d0d" stroke="#4ade80" stroke-width="1.5"/>
+          <text x="305" y="34"  text-anchor="middle" fill="#4ade80" font-size="7" font-family="monospace">OPS</text>
+          <!-- kb -->
+          <circle id="mgn-kb"          cx="55"  cy="115" r="12" fill="#0d0d0d" stroke="#c084fc" stroke-width="1.5"/>
+          <text x="55"  y="119" text-anchor="middle" fill="#c084fc" font-size="7" font-family="monospace">KB</text>
+          <!-- seo -->
+          <circle id="mgn-seo"         cx="180" cy="128" r="12" fill="#0d0d0d" stroke="#34d399" stroke-width="1.5"/>
+          <text x="180" y="132" text-anchor="middle" fill="#34d399" font-size="7" font-family="monospace">SEO</text>
+          <!-- wansoft -->
+          <circle id="mgn-wansoft_ag"  cx="305" cy="115" r="12" fill="#0d0d0d" stroke="#fb923c" stroke-width="1.5"/>
+          <text x="305" y="119" text-anchor="middle" fill="#fb923c" font-size="7" font-family="monospace">WAN</text>
+          <!-- orchestrator center -->
+          <circle id="mgn-orchestrator" cx="180" cy="70" r="16" fill="#0d0d0d" stroke="#818cf8" stroke-width="2"/>
+          <text x="180" y="74" text-anchor="middle" fill="#818cf8" font-size="7" font-family="monospace">ORCH</text>
+        </svg>
+      </div>
       <div class="pixel-office-wrap">
         <div class="pixel-office-header">
           <div class="pixel-office-title">⬡ Fullsite HQ</div>
@@ -2523,6 +2652,43 @@ function tick() {
   document.getElementById('clk').textContent = t.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
 }
 
+// ── System Status card (sidebar) ─────────────────────────────
+async function updateSystemStatus() {
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/wansoft_kpis?id=eq.amalay&select=updated_at`,
+      { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY } });
+    const rows = await r.json();
+    const updatedAt = rows?.[0]?.updated_at;
+    const minAgo = updatedAt ? Math.floor((Date.now() - new Date(updatedAt).getTime()) / 60000) : null;
+    const ageEl = document.getElementById('sys-wansoft-age');
+    const dotEl = document.getElementById('sys-wansoft-dot');
+    const ok = minAgo !== null && minAgo < 25;
+    if(ageEl) ageEl.textContent = minAgo !== null ? `hace ${minAgo}min` : '–';
+    if(ageEl) ageEl.style.color = ok ? '#4ade80' : '#f59e0b';
+    if(dotEl) { dotEl.textContent = ok ? '●' : '⚠'; dotEl.style.color = ok ? '#4ade80' : '#f59e0b'; }
+  } catch(e) {}
+}
+
+// ── Mission area particles ───────────────────────────────────
+function initMissionParticles() {
+  const panel = document.querySelector('.mission-panel');
+  if(!panel) return;
+  panel.style.overflow = 'hidden';
+  function spawnParticle() {
+    const p = document.createElement('div');
+    p.className = 'ptcl';
+    p.style.left = Math.random() * 100 + '%';
+    p.style.bottom = '0';
+    p.style.opacity = Math.random() * .4 + .1;
+    p.style.animationDuration = (3 + Math.random() * 4) + 's';
+    p.style.animationDelay = '0s';
+    p.style.background = ['#4ade80','#818cf8','#f59e0b','#60a5fa'][Math.floor(Math.random()*4)];
+    panel.appendChild(p);
+    setTimeout(() => p.remove(), 8000);
+  }
+  setInterval(spawnParticle, 1200);
+}
+
 async function boot() {
   document.getElementById('setup').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
@@ -2540,6 +2706,11 @@ async function boot() {
   renderTab('warroom');
   tick();
   setInterval(tick, 30000);
+
+  // System status + particles
+  updateSystemStatus();
+  setInterval(updateSystemStatus, 60000);
+  setTimeout(initMissionParticles, 1000);
 
   // Init GBP OAuth after GIS library loads
   setTimeout(initGBP, 1500);
@@ -2834,22 +3005,40 @@ function updateCycleIndicator(msg) {
 
 function updateAgentStatusBar(agentId, state, label) {
   const el = document.getElementById('ast-'+agentId);
-  if(!el) return;
-  const colors = {contenido:'#f59e0b',reportes:'#60a5fa',ops:'#4ade80',kb:'#c084fc',seo:'#34d399',orchestrator:'#818cf8'};
-  const c = colors[agentId] || '#aaa';
-  const icons = {working:'⚡',done:'✓',idle:'●'};
-  if(state === 'working') {
-    el.style.color = c;
-    el.style.textShadow = `0 0 8px ${c}88`;
-    el.textContent = `⚡ ${label}`;
-  } else if(state === 'done') {
-    el.style.color = c + 'aa';
-    el.style.textShadow = 'none';
-    el.textContent = `✓ ${label}`;
-  } else {
-    el.style.color = c + '55';
-    el.style.textShadow = 'none';
-    el.textContent = `● ${el.dataset.name || agentId}`;
+  if(el) {
+    const colors = {contenido:'#f59e0b',reportes:'#60a5fa',ops:'#4ade80',kb:'#c084fc',seo:'#34d399',orchestrator:'#818cf8'};
+    const c = colors[agentId] || '#aaa';
+    if(state === 'working') {
+      el.style.color = c;
+      el.style.textShadow = `0 0 8px ${c}88`;
+      el.textContent = `⚡ ${label}`;
+    } else if(state === 'done') {
+      el.style.color = c + 'aa';
+      el.style.textShadow = 'none';
+      el.textContent = `✓ ${label}`;
+    } else {
+      el.style.color = c + '55';
+      el.style.textShadow = 'none';
+      el.textContent = `● ${el.dataset.name || agentId}`;
+    }
+  }
+  // Update mini graph node
+  const node = document.getElementById('mgn-'+agentId);
+  if(node) {
+    if(state === 'working') {
+      node.style.filter = 'drop-shadow(0 0 6px currentColor)';
+      node.setAttribute('stroke-width','2.5');
+      node.style.animation = 'mg-glow .6s ease-in-out infinite';
+    } else if(state === 'done') {
+      node.style.filter = 'drop-shadow(0 0 4px currentColor)';
+      node.setAttribute('stroke-width','2');
+      node.style.animation = 'none';
+      setTimeout(() => { node.style.filter='none'; node.setAttribute('stroke-width','1.5'); }, 3000);
+    } else {
+      node.style.filter = 'none';
+      node.setAttribute('stroke-width', agentId==='orchestrator' ? '2' : '1.5');
+      node.style.animation = 'none';
+    }
   }
 }
 

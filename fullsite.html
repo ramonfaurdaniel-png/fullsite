@@ -420,10 +420,11 @@ hr.div{border:none;border-top:1px solid var(--border);margin:16px 0;}
   <div class="setup-box">
     <div class="setup-logo">Full<em>site</em></div>
     <div class="setup-sub">war room · agencia digital</div>
-    <label class="setup-label">Clave API de Anthropic (Claude)</label>
-    <input class="setup-input" type="password" id="setup-key" placeholder="gsk_..." autocomplete="off">
-    <button class="setup-btn" onclick="saveKey()">Entrar al War Room →</button>
-    <div class="setup-note">Tu clave se guarda solo en este navegador.<br>Consíguela GRATIS en console.groq.com</div>
+    <label class="setup-label">Clave API de Groq</label>
+    <input class="setup-input" type="password" id="setup-key" placeholder="gsk_..." autocomplete="off" onkeydown="if(event.key==='Enter')saveKey()">
+    <button class="setup-btn" id="setup-btn" onclick="saveKey()">Entrar al War Room →</button>
+    <div id="setup-error" style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#f87171;margin-top:10px;display:none;text-align:left;line-height:1.6;"></div>
+    <div class="setup-note">Tu clave se guarda solo en este navegador.<br>Consíguela GRATIS en <strong>console.groq.com</strong></div>
   </div>
 </div>
 
@@ -2650,11 +2651,40 @@ function resetAll() {
 // ============================================================
 // SETUP & INIT
 // ============================================================
-function saveKey() {
+async function saveKey() {
   const key = document.getElementById('setup-key').value.trim();
-  if(!key) { alert('Clave inválida. Debe empezar con sk-ant-  — obtenla en console.anthropic.com'); return; }
-  LS.set('warroom_api_key', key);
-  boot();
+  const errEl = document.getElementById('setup-error');
+  const btn = document.getElementById('setup-btn');
+  const showErr = (msg) => { if(errEl){ errEl.textContent = msg; errEl.style.display = 'block'; } };
+  errEl.style.display = 'none';
+
+  if(!key) { showErr('⚠️ Pega tu clave de Groq (empieza con gsk_)'); return; }
+  if(!key.startsWith('gsk_')) { showErr(`⚠️ La clave debe empezar con gsk_\nRecibido: ${key.slice(0,12)}…`); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Verificando…';
+
+  try {
+    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'llama-3.3-70b-versatile', max_tokens: 5, messages: [{ role:'user', content:'hi' }] })
+    });
+    const data = await resp.json();
+    console.log('[saveKey] Groq test response:', JSON.stringify(data));
+    if(data.error) {
+      showErr(`⚠️ Error de Groq (${resp.status}):\n${data.error.message}`);
+      btn.disabled = false; btn.textContent = 'Entrar al War Room →';
+      return;
+    }
+    // Key válida
+    LS.set('warroom_api_key', key);
+    boot();
+  } catch(e) {
+    console.error('[saveKey] fetch error:', e);
+    showErr(`⚠️ Error de red: ${e.message}\nVerifica tu conexión a internet.`);
+    btn.disabled = false; btn.textContent = 'Entrar al War Room →';
+  }
 }
 
 function buildPills() {
@@ -2945,7 +2975,7 @@ Genera: 1 post de Google Business Profile (GBP) listo para publicar + 1 recomend
 
 
 // ============================================================
-// GROQ API — llama-3.1-8b-instant (directo, sin proxy)
+// GROQ API — llama-3.3-70b-versatile (directo, sin proxy)
 // Key se configura en ⚙ Ajustes (campo "API Key") — empieza con gsk_
 // ============================================================
 async function groqCall(systemPrompt, messages, maxTokens=400) {
@@ -2961,16 +2991,20 @@ async function groqCall(systemPrompt, messages, maxTokens=400) {
     ? [{ role: 'system', content: systemPrompt }, ...messages]
     : messages;
 
-  const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': 'Bearer ' + apiKey,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ model: 'llama-3.1-8b-instant', max_tokens: maxTokens, messages: allMessages })
-  });
-  const data = await resp.json();
-  if (data.error) throw new Error(data.error.message);
+  let resp, data;
+  try {
+    resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'llama-3.3-70b-versatile', max_tokens: maxTokens, messages: allMessages })
+    });
+    data = await resp.json();
+  } catch(e) {
+    console.error('[Groq] fetch error:', e);
+    throw new Error('Error de red al llamar Groq: ' + e.message);
+  }
+  console.log('[Groq] status:', resp.status, '| error:', data.error || 'none');
+  if(data.error) throw new Error(`Groq ${resp.status}: ${data.error.message}`);
   return data.choices?.[0]?.message?.content || null;
 }
 

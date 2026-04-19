@@ -2767,7 +2767,7 @@ async function renderBriefing() {
       </div>
       <div class="briefing-section">
         <div class="briefing-label">Sistema</div>
-        <div>Wansoft sync: <span class="${syncOk?'briefing-val-pos':'briefing-val-neg'}">${syncAgo!=null?`hace ${syncAgo}min ${syncOk?'✓':'⚠️ CAÍDO'}':'–'}</span></div>
+        <div>Wansoft sync: <span class="${syncOk?'briefing-val-pos':'briefing-val-neg'}">${syncAgo!=null?`hace ${syncAgo}min ${syncOk?'✓':'⚠️ CAÍDO'}`:'–'}</span></div>
         <div>Telegram bot: <span class="briefing-val-pos">✓ activo</span></div>
         <div>Supabase: <span class="briefing-val-pos">✓ conectado</span></div>
       </div>
@@ -2797,7 +2797,7 @@ function buildBriefingText(w, urgent, dateStr, syncAgo, syncOk) {
     ...(urgent.length ? urgent.slice(0,5).map(t=>`- ${t.title}`) : ['✓ Sin urgentes']),
     '',
     `SISTEMA:`,
-    `- Wansoft sync: ${syncAgo!=null?`hace ${syncAgo}min ${syncOk?'✓':'⚠️ CAÍDO'}':'–'}`,
+    `- Wansoft sync: ${syncAgo!=null?`hace ${syncAgo}min ${syncOk?'✓':'⚠️ CAÍDO'}`:'–'}`,
     `- Telegram bot: ✓ activo`,
   ];
   return lines.join('\n');

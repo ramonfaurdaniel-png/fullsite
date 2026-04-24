@@ -4166,10 +4166,11 @@ function renderGraph() {
         const d = rows[0];
         if(!d) return;
         const fmt = v => v != null ? (typeof v==='number' ? v.toLocaleString('es-MX') : v) : '—';
-        document.getElementById('wg-k1').innerHTML = `ventas <span>$${fmt(d.ventas_totales)}</span>`;
-        document.getElementById('wg-k2').innerHTML = `tickets <span>${fmt(d.num_tickets)}</span>`;
-        document.getElementById('wg-k3').innerHTML = `ticket prom <span>$${fmt(d.ticket_promedio)}</span>`;
-        document.getElementById('wg-k4').innerHTML = `top server <span>${fmt(d.top_server)}</span>`;
+        // esc() previene XSS si algún campo de Supabase contiene HTML (M-1)
+        document.getElementById('wg-k1').innerHTML = `ventas <span>$${esc(fmt(d.ventas_totales))}</span>`;
+        document.getElementById('wg-k2').innerHTML = `tickets <span>${esc(fmt(d.num_tickets))}</span>`;
+        document.getElementById('wg-k3').innerHTML = `ticket prom <span>$${esc(fmt(d.ticket_promedio))}</span>`;
+        document.getElementById('wg-k4').innerHTML = `top server <span>${esc(fmt(d.top_server))}</span>`;
         // color wansoft node green if data is fresh (< 25 min)
         if(d.updated_at) {
           const age = (Date.now() - new Date(d.updated_at)) / 60000;

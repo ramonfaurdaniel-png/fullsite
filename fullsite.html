@@ -4115,8 +4115,9 @@ function renderGraph() {
         });
         // tooltip
         tt.style.display='block';
-        tt.innerHTML=`<div class="tt-name">${d.icon} ${d.label}</div>
-          <div style="color:#888;font-size:9px">${d.desc}</div>
+        // esc() en label/desc/icon: preventivo si NODES se carga desde fuente externa (M-2)
+        tt.innerHTML=`<div class="tt-name">${esc(d.icon)} ${esc(d.label)}</div>
+          <div style="color:#888;font-size:9px">${esc(d.desc)}</div>
           <div class="tt-badge" style="background:${typeColors[d.type]}22;color:${typeColors[d.type]};border:1px solid ${typeColors[d.type]}44">${d.type}</div>`;
       })
       .on('mousemove', function(e) {

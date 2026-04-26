@@ -58,3 +58,6 @@ jobs:
             Glob,
             Grep
           timeout_minutes: "60"
+          custom_instructions: |
+            After creating a PR, always run: gh pr merge --auto --squash --delete-branch
+            This ensures the PR merges automatically when all checks pass.

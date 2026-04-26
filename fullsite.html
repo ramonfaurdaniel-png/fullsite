@@ -2181,7 +2181,14 @@ function renderWarRoom() {
     </div>`;
 
   document.getElementById('tab-warroom').innerHTML = `
-    <p class="ps" id="wr-date">FULLSITE · ${dateStr()}</p>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <p class="ps" style="margin:0" id="wr-date">FULLSITE · ${dateStr()}</p>
+      <button class="sec-btn" id="wr-refresh" onclick="
+        const b=document.getElementById('wr-refresh');
+        b.disabled=true;b.textContent='↻ Cargando…';
+        loadAll().then(()=>{renderWarRoom();}).catch(()=>{b.disabled=false;b.textContent='↻ Refrescar datos';})
+      ">↻ Refrescar datos</button>
+    </div>
     <div class="kpis">
       <div class="kpi"><div class="kpi-l">Clientes activos</div><div class="kpi-v">${active}</div><div class="kpi-d">${active===1?clients.filter(c=>c.status==='active')[0]?.name.split(' ')[0]+' activo':'clientes activos'}</div></div>
       <div class="kpi"><div class="kpi-l">Tareas pendientes</div><div class="kpi-v">${pending.length}</div><div class="kpi-d ${highPending>0?'warn':''}">${highPending} de alta prioridad</div></div>

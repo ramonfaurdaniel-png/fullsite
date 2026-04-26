@@ -7,8 +7,6 @@ on:
     types: [opened]
   pull_request:
     types: [opened, synchronize]
-  push:
-    branches: [main]
 
 permissions:
   contents: write
@@ -23,8 +21,7 @@ jobs:
     if: |
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'issues' && contains(github.event.issue.body, '@claude')) ||
-      (github.event_name == 'pull_request') ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+      (github.event_name == 'pull_request')
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

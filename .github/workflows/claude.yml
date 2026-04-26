@@ -88,6 +88,6 @@ jobs:
           fi
           gh pr merge $EXISTING_PR \
             --repo ${{ github.repository }} \
-            --auto --squash --delete-branch \
-            && echo "Auto-merge enabled on PR #$EXISTING_PR" \
-            || echo "Auto-merge could not be enabled (may already be set)"
+            --squash --delete-branch \
+            && echo "Merged PR #$EXISTING_PR via squash" \
+            || echo "Merge could not be completed (may already be merged)"

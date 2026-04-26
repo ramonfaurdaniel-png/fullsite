@@ -1,0 +1,59 @@
+name: Claude Code
+
+on:
+  issue_comment:
+    types: [created]
+  issues:
+    types: [opened]
+  pull_request:
+    types: [opened, synchronize]
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  actions: write
+
+jobs:
+  claude:
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'issues' && contains(github.event.issue.body, '@claude')) ||
+      (github.event_name == 'pull_request') ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Code
+        uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: claude-opus-4-5
+          allowed_tools: >
+            Bash(git *),
+            Bash(gh *),
+            Bash(npm *),
+            Bash(node *),
+            Bash(ls *),
+            Bash(cat *),
+            Bash(mkdir *),
+            Bash(cp *),
+            Bash(mv *),
+            Bash(rm *),
+            Bash(echo *),
+            Bash(grep *),
+            Bash(find *),
+            Bash(sed *),
+            Bash(awk *),
+            Read,
+            Write,
+            Edit,
+            Glob,
+            Grep
+          timeout_minutes: "60"

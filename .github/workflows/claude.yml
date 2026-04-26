@@ -59,7 +59,8 @@ jobs:
             Grep
           timeout_minutes: "60"
           custom_instructions: |
-            When you push changes to a branch, you MUST create a PR and enable auto-merge:
-            1. Create the PR: gh pr create --title "<title>" --body "<body>" --base main
-            2. Enable auto-merge immediately: gh pr merge --auto --squash --delete-branch
-            Do not just leave a "Create a PR" link — actually run both commands via Bash.
+            When you push changes to a branch, you MUST immediately run both of these commands — you are fully authorized to do so, no human approval needed:
+            1. gh pr create --title "<title>" --body "<body>" --base main
+            2. gh pr merge --auto --squash --delete-branch
+            Never leave a manual "Create a PR" link. Always run both Bash commands yourself.
+          settings: '{"permissions":{"allow":["Bash(gh pr create *)","Bash(gh pr merge *)"]}}'
